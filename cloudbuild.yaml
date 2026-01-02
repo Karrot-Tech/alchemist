@@ -1,0 +1,31 @@
+steps:
+  # 1. Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/alchemist-repo/alchemist-app:latest', '.']
+
+  # 2. Push the image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/alchemist-repo/alchemist-app:latest']
+
+  # 3. Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'alchemist-service'
+      - '--image'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/alchemist-repo/alchemist-app:latest'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'GEMINI_API_KEY=$_GEMINI_API_KEY'
+
+substitutions:
+  _GEMINI_API_KEY: 'YOUR_API_KEY_HERE' # Set this in Cloud Build triggers settings!
+
+options:
+  logging: CLOUD_LOGGING_ONLY

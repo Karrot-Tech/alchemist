@@ -1,0 +1,48 @@
+[Time: 00:00]
+Doctor: Hello, Mrs. Smith. And this must be Timmy?
+Mother: Yes, say hello Timmy.
+Timmy: (Mumbles) Hi.
+Doctor: Timmy, how old are you now?
+Timmy: I'm 10.
+Doctor: And what grade are you in?
+Timmy: 4th grade.
+
+[Time: 00:45]
+Doctor: Mrs. Smith, what brings you both in today?
+Mother: We're having a lot of trouble at school. The teacher says Timmy can't sit still. He's constantly disrupting the class, getting out of his seat, and he just can't focus on his work. He's failing math and reading because he just doesn't turn in assignments.
+Doctor: Timmy, is that true? Is it hard to sit still?
+Timmy: Yeah, kinda. It feels like I have a motor inside me. I just wanna run around.
+
+[Time: 02:00]
+Doctor: How long has this been happening?
+Mother: Honestly, since Kindergarten, but it's gotten much worse this year.
+Doctor: Any issues at home?
+Mother: He forgets his chores constantly. I have to tell him ten times to brush his teeth. He loses his backpack, his jacket, everything.
+
+[Time: 03:00]
+Doctor: Let's talk about his history. Any complications when he was born?
+Mother: No, full term, normal delivery.
+Doctor: Did he hit his milestones on time? Walking, talking?
+Mother: Yes, he walked at 12 months, spoke early actually. No delays there.
+
+[Time: 04:00]
+Doctor: Who lives at home?
+Mother: Just me and Timmy. His father and I divorced two years ago. He sees his dad every other weekend.
+Doctor: Any family history of attention problems?
+Mother: His father has ADHD, I'm pretty sure. And my brother has bipolar disorder.
+
+[Time: 05:00]
+Doctor: Timmy, how are you feeling today? Happy? Sad?
+Timmy: I'm okay. Maybe a little bored.
+Doctor: (Observation) Timmy is spinning in the chair, kicking the desk leg repeatedly. Eye contact is intermittent. Affect is full range but he is clearly restless.
+
+[Time: 06:30]
+Doctor: Does he take any medications?
+Mother: No, nothing. He has no allergies either.
+Doctor: How is his sleep?
+Mother: Hard to get him to bed, but once he's asleep he sleeps through the night.
+
+[Time: 07:00]
+Doctor: Okay. My impression is that Timmy meets criteria for ADHD, Combined Type. The impulsivity and inattention are affecting him at school and home.
+Doctor: I recommend we start a trial of Methylphenidate (Ritalin), 5mg in the morning. We also need to get a 504 plan set up at school for extra time on tests and preferred seating.
+Mother: Okay, we can try that.

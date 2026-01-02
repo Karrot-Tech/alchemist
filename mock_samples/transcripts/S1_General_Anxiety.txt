@@ -1,0 +1,27 @@
+[Time: 00:00]
+Doctor: Good morning, Sarah. I’m Dr. Evans. I see you were referred by your primary care physician?
+Patient: Yes. Dr. Lee said I needed to talk to someone. I’ve just been… I don’t know, I feel like I’m losing my mind.
+Doctor: Can you tell me more about that feeling?
+Patient: It’s constant worry. About everything. My job, my kids, the car breaking down. I wake up with this knot in my stomach.
+Doctor: How long has this been going on?
+Patient: I’ve always been a worrier, but the last six months it’s unmanageable. I’m snapping at my husband. I can’t concentrate at work.
+Doctor: Are you having any physical symptoms?
+Patient: Headaches. Tension in my neck. And sometimes my heart just starts pounding out of nowhere, even when I’m sitting on the couch.
+Doctor: Any panic attacks where you feel like you can't breathe?
+Patient: A couple of times, yes. Last week in the grocery store, I had to leave my cart and run to the car because I thought I was going to pass out.
+
+[Time: 02:00]
+Doctor: How is your sleep?
+Patient: Terrible. I fall asleep okay, but I wake up at 2 AM and my brain just turns on. I can’t shut it off.
+Doctor: Have you ever taken any medication for anxiety before?
+Patient: No. I tried meditation apps, but I just get frustrated.
+Doctor: Do you drink alcohol or use any substances?
+Patient: I have a glass of wine or two at night to help me wind down. Maybe a bit more on weekends.
+Doctor: Does anyone in your family struggle with anxiety or depression?
+Patient: My mom is a nervous wreck. She never saw anyone for it though.
+
+[Time: 04:00]
+Doctor: Sarah, it sounds like you’re dealing with Generalized Anxiety Disorder, possibly with some panic features. The alcohol might actually be making the sleep worse in the long run.
+Patient: Really? It’s the only thing that relaxes me.
+Doctor: I understand, but it disrupts the sleep cycle. I’d like to discuss starting a low dose of an SSRI, like Lexapro, and also getting you into CBT therapy to help with the worry loops.
+Patient: I’m open to trying something. I just want to feel normal again.

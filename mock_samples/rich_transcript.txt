@@ -1,0 +1,43 @@
+[Time: 00:00]
+Doctor: Good morning. Can you tell me your full name and date of birth for the record?
+Patient: It's John Doe, born January 15, 1985.
+Doctor: Thanks, John. What brings you in today? What's the main trouble?
+Patient: Honestly, I'm just feeling hopeless. I can't sleep, I'm anxious all the time. I guess that's my chief complaint. Depression and anxiety.
+
+[Time: 00:30]
+Doctor: I'm sorry to hear that. How long has this been going on?
+Patient: It got really bad about 3 months ago after I lost my job. I wake up at 3 AM every night and can't fall back asleep. I've lost about 10 pounds because I just don't have an appetite. I feel heavy, like I'm moving through mud.
+Doctor: Any panic attacks?
+Patient: Yes, maybe twice a week. My heart races, I get sweaty, feel like I'm dying. Usually happens when I think about bills.
+
+[Time: 02:00]
+Doctor: Have you ever been diagnosed with anything in the past?
+Patient: Yeah, I was diagnosed with Major Depressive Disorder in 2010. I was hospitalized once back then for a few days because I was feeling unsafe.
+Doctor: Are you taking any medications right now?
+Patient: I'm on Sertraline 50mg, but I don't think it's working anymore. I used to take Prozac but it gave me bad headaches. I'm allergic to Penicillin, by the way.
+
+[Time: 03:30]
+Doctor: Okay. Any medical issues outside of mental health?
+Patient: Just high blood pressure. I take Lisinopril for that.
+Doctor: What about substance use? Alcohol, drugs?
+Patient: I drink maybe 2 or 3 beers a night to help me sleep. I used to smoke pot in college but haven't touched it in 10 years. No other drugs.
+
+[Time: 05:00]
+Doctor: Let's talk about your family. Any history there?
+Patient: My mom had bipolar disorder. My dad struggled with alcohol.
+
+[Time: 06:00]
+Doctor: (Observation) I notice you're looking down a lot, avoiding eye contact. You seem a bit restless with your hands.
+Patient: Yeah, I'm just nervous.
+Doctor: How is your mood right now, on a scale of 1 to 10?
+Patient: Probably a 3. I feel pretty low.
+Doctor: Do you ever hear voices or see things others don't?
+Patient: No, never.
+Doctor: Do you have any thoughts of hurting yourself right now?
+Patient: I sometimes wish I wouldn't wake up, but I would never actually do anything. I have my kids to live for. I don't have a plan or anything.
+
+[Time: 08:00]
+Doctor: I'm glad you have that anchor. Here is what I think. It sounds like a recurrence of Major Depressive Disorder, severe, with some anxious distress.
+Doctor: For the plan, I want to increase your Sertraline to 100mg. I also want you to start therapy—CBT specifically. We should check your thyroid levels too, just to rule that out. Stop the alcohol at night, it's actually making your sleep worse in the long run.
+Patient: Okay, I can try that.
+Doctor: Let's follow up in 2 weeks.
