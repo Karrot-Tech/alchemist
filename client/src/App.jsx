@@ -11,12 +11,30 @@ import PatientManager from './pages/PatientManager';
 import Settings from './pages/Settings';
 import LandingPage from './pages/LandingPage';
 
+import OnboardingTour from './components/OnboardingTour';
+
 function App() {
   const [activeTab, setActiveTab] = useState('ingest');
   const [appMode, setAppMode] = useState('dashboard');
   const [transcriptData, setTranscriptData] = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const { getToken, isLoaded, isSignedIn } = useAuth();
+
+  // Onboarding Check
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      const hasSeenOnboarding = localStorage.getItem('alchemist_onboarding_completed');
+      if (!hasSeenOnboarding) {
+        setShowOnboarding(true);
+      }
+    }
+  }, [isLoaded, isSignedIn]);
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem('alchemist_onboarding_completed', 'true');
+    setShowOnboarding(false);
+  };
 
   // Intercept fetch to add token
   useEffect(() => {
@@ -106,6 +124,7 @@ function App() {
         <LandingPage />
       </SignedOut>
       <SignedIn>
+        {showOnboarding && <OnboardingTour onComplete={handleOnboardingComplete} />}
         <Layout activeTab={activeTab} onNavigate={handleNavigate}>
           {appMode === 'dashboard' && <Dashboard onNavigate={handleNavigate} />}
 
