@@ -265,6 +265,8 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
 
             // Step 2: Poll for Processing Status
             let state = "PROCESSING";
+            let verifiedMime = gemini_mime_type;
+
             while (state === "PROCESSING") {
                 // Wait 2s
                 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -273,6 +275,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
                 if (!statusRes.ok) throw new Error("Failed to check processing status");
                 const statusData = await statusRes.json();
                 state = statusData.state;
+                if (statusData.mimeType) verifiedMime = statusData.mimeType;
 
                 if (state === "FAILED") throw new Error("Audio processing failed by AI provider.");
             }
@@ -283,7 +286,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     file_uri: gemini_file_uri,
-                    mime_type: gemini_mime_type || file.type || "audio/mp3"
+                    mime_type: verifiedMime || file.type || "audio/mp3"
                 })
             });
 

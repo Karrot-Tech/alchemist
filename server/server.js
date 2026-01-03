@@ -223,17 +223,26 @@ const fileManager = new GoogleAIFileManager(apiKey);
 // Help to check if ffmpeg is available
 const checkFFmpeg = async () => {
     try {
+        // Try simple command first
         await execPromise('ffmpeg -version');
-        return true;
+        return "ffmpeg";
     } catch (e) {
-        return false;
+        try {
+            // Try common homebrew path on Apple Silicon
+            const brewPath = "/opt/homebrew/bin/ffmpeg";
+            await execPromise(`${brewPath} -version`);
+            return brewPath;
+        } catch (e2) {
+            return false;
+        }
     }
 };
 
-const convertToMp3 = async (inputPath, outputPath) => {
+const convertToMp3 = async (ffmpegPath, inputPath, outputPath) => {
     try {
-        // -i: input, -acodec libmp3lame: use mp3 encoder, -y: overwrite
-        await execPromise(`ffmpeg -i "${inputPath}" -acodec libmp3lame -y "${outputPath}"`);
+        console.log(`[FFmpeg] Converting ${path.basename(inputPath)} -> ${path.basename(outputPath)} using ${ffmpegPath}`);
+        // -i: input, -acodec libmp3lame: use mp3 encoder, -ab 128k: constant bitrate, -y: overwrite
+        await execPromise(`"${ffmpegPath}" -i "${inputPath}" -acodec libmp3lame -ab 128k -y "${outputPath}"`);
         return true;
     } catch (e) {
         console.error("FFmpeg Conversion Error:", e);
@@ -266,25 +275,31 @@ app.post('/api/upload', requireAuth, upload.single('audio'), async (req, res) =>
         const isMp3 = mimeType === 'audio/mpeg' || mimeType === 'audio/mp3' || req.file.originalname.endsWith('.mp3');
 
         // 2. Normalize to MP3 via FFmpeg if necessary
-        const hasFFmpeg = await checkFFmpeg();
+        const ffmpegPath = await checkFFmpeg();
         let convertedPath = null;
 
-        if (!isMp3 && hasFFmpeg) {
-            console.log(`[Async] Non-MP3 detected (${mimeType}). Converting via FFmpeg...`);
+        if (!isMp3 && ffmpegPath) {
+            console.log(`[Async] Non-MP3 detected (${mimeType}). Converting via ${ffmpegPath}...`);
             convertedPath = path.join(os.tmpdir(), `converted-${Date.now()}.mp3`);
-            const success = await convertToMp3(tempPathOriginal, convertedPath);
+            const success = await convertToMp3(ffmpegPath, tempPathOriginal, convertedPath);
             if (success) {
                 finalPath = convertedPath;
                 mimeType = "audio/mp3";
+            } else {
+                console.error("[Async] FFmpeg conversion failed. Using original file.");
             }
-        } else if (!isMp3 && !hasFFmpeg) {
-            console.warn("[Async] FFmpeg not found. Falling back to direct upload (MIME normalization only).");
-            // Normalize MIME Types for Gemini (Fallback logic)
-            if (mimeType === 'application/octet-stream' && (req.file.originalname.endsWith('.mp4') || req.file.originalname.endsWith('.m4a'))) {
-                mimeType = "audio/mp4";
-            }
-            if (mimeType === 'audio/x-m4a') mimeType = "audio/mp4";
+        } else if (!isMp3 && !ffmpegPath) {
+            console.warn("[Async] FFmpeg not found. Falling back to direct upload.");
         }
+
+        // Final sanity check for common extensions
+        if (mimeType === 'application/octet-stream') {
+            if (finalPath.endsWith('.mp3')) mimeType = "audio/mp3";
+            else if (finalPath.endsWith('.mp4') || finalPath.endsWith('.m4a')) mimeType = "audio/mp4";
+        }
+
+        // Normalize x-m4a to mp4 but keep any codec strings for mp4
+        if (mimeType.startsWith('audio/x-m4a')) mimeType = mimeType.replace('audio/x-m4a', 'audio/mp4');
 
         mimeType = mimeType || "audio/mp3";
         console.log(`[Async] Uploading to Gemini. Final Path: ${path.basename(finalPath)}, MIME: ${mimeType}`);
@@ -337,7 +352,11 @@ app.get('/api/status', requireAuth, async (req, res) => {
         if (!name) return res.status(400).json({ error: "Missing name parameter" });
 
         const file = await fileManager.getFile(name);
-        res.json({ name: file.name, state: file.state });
+        res.json({
+            name: file.name,
+            state: file.state,
+            mimeType: file.mimeType // Return the actual detected mimeType from Gemini
+        });
     } catch (error) {
         console.error("Status Check Error:", error);
         res.status(500).json({ error: "Failed to check status" });
