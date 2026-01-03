@@ -16,6 +16,9 @@ const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const requireAuth = require('./middleware/auth');
+const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
 
 const PROMPTS = loadPrompts();
 
@@ -217,6 +220,27 @@ if (!apiKey) {
 const genAI = new GoogleGenerativeAI(apiKey);
 const fileManager = new GoogleAIFileManager(apiKey);
 
+// Help to check if ffmpeg is available
+const checkFFmpeg = async () => {
+    try {
+        await execPromise('ffmpeg -version');
+        return true;
+    } catch (e) {
+        return false;
+    }
+};
+
+const convertToMp3 = async (inputPath, outputPath) => {
+    try {
+        // -i: input, -acodec libmp3lame: use mp3 encoder, -y: overwrite
+        await execPromise(`ffmpeg -i "${inputPath}" -acodec libmp3lame -y "${outputPath}"`);
+        return true;
+    } catch (e) {
+        console.error("FFmpeg Conversion Error:", e);
+        return false;
+    }
+};
+
 // Basic Health Check (Public)
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Alchemist Server is running' });
@@ -232,41 +256,52 @@ app.post('/api/upload', requireAuth, upload.single('audio'), async (req, res) =>
 
         console.log(`[Async] Processing upload: ${req.file.originalname}`);
 
-        // 1. Write to temp file
-        const tempFilePath = path.join(os.tmpdir(), req.file.originalname);
-        fs.writeFileSync(tempFilePath, req.file.buffer);
+        // 1. Write original to temp file
+        const originalExt = path.extname(req.file.originalname) || '';
+        const tempPathOriginal = path.join(os.tmpdir(), `original-${Date.now()}${originalExt}`);
+        fs.writeFileSync(tempPathOriginal, req.file.buffer);
 
-        // 2. Upload to Gemini
+        let finalPath = tempPathOriginal;
         let mimeType = req.file.mimetype;
+        const isMp3 = mimeType === 'audio/mpeg' || mimeType === 'audio/mp3' || req.file.originalname.endsWith('.mp3');
 
-        // Normalize MIME Types for Gemini
-        // We handle specific common mismatches, but avoid forcing audio/aac if not sure.
-        if (mimeType === 'application/octet-stream' && req.file.originalname.endsWith('.mp3')) {
-            mimeType = "audio/mp3";
-        } else if (mimeType === 'application/octet-stream' && (req.file.originalname.endsWith('.mp4') || req.file.originalname.endsWith('.m4a'))) {
-            mimeType = "audio/mp4";
+        // 2. Normalize to MP3 via FFmpeg if necessary
+        const hasFFmpeg = await checkFFmpeg();
+        let convertedPath = null;
+
+        if (!isMp3 && hasFFmpeg) {
+            console.log(`[Async] Non-MP3 detected (${mimeType}). Converting via FFmpeg...`);
+            convertedPath = path.join(os.tmpdir(), `converted-${Date.now()}.mp3`);
+            const success = await convertToMp3(tempPathOriginal, convertedPath);
+            if (success) {
+                finalPath = convertedPath;
+                mimeType = "audio/mp3";
+            }
+        } else if (!isMp3 && !hasFFmpeg) {
+            console.warn("[Async] FFmpeg not found. Falling back to direct upload (MIME normalization only).");
+            // Normalize MIME Types for Gemini (Fallback logic)
+            if (mimeType === 'application/octet-stream' && (req.file.originalname.endsWith('.mp4') || req.file.originalname.endsWith('.m4a'))) {
+                mimeType = "audio/mp4";
+            }
+            if (mimeType === 'audio/x-m4a') mimeType = "audio/mp4";
         }
 
-        // If it's audio/mp4 or audio/x-m4a, keep it as is or use audio/mp4
-        if (mimeType === 'audio/x-m4a') mimeType = "audio/mp4";
-
         mimeType = mimeType || "audio/mp3";
+        console.log(`[Async] Uploading to Gemini. Final Path: ${path.basename(finalPath)}, MIME: ${mimeType}`);
 
-        console.log(`[Async] Uploading to Gemini. Original: ${req.file.mimetype}, Normalized: ${mimeType}, File: ${req.file.originalname}`);
-
-        const uploadResult = await fileManager.uploadFile(tempFilePath, {
+        // 3. Upload to Gemini
+        const uploadResult = await fileManager.uploadFile(finalPath, {
             mimeType: mimeType,
             displayName: req.file.originalname,
         });
 
-        console.log(`[Async] Uploaded to Gemini: ${uploadResult.file.name} (URI: ${uploadResult.file.uri})`);
-
-        // 3. Store permanent backup (Vercel Blob) - Async (don't await strictly if speed is key, but good to keep)
+        // 4. Store permanent backup (Vercel Blob)
         let permanentAudioUrl = null;
         try {
             if (process.env.BLOB_READ_WRITE_TOKEN) {
-                const blobFilename = `dictations/${Date.now()}-${req.file.originalname}`;
-                const blobResult = await put(blobFilename, req.file.buffer, {
+                const blobFilename = `dictations/${Date.now()}-${path.basename(finalPath)}`;
+                const blobBuffer = finalPath === convertedPath ? fs.readFileSync(convertedPath) : req.file.buffer;
+                const blobResult = await put(blobFilename, blobBuffer, {
                     access: 'public',
                     contentType: mimeType
                 });
@@ -277,12 +312,14 @@ app.post('/api/upload', requireAuth, upload.single('audio'), async (req, res) =>
         }
 
         // Cleanup
-        if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+        if (fs.existsSync(tempPathOriginal)) fs.unlinkSync(tempPathOriginal);
+        if (convertedPath && fs.existsSync(convertedPath)) fs.unlinkSync(convertedPath);
 
         res.json({
             gemini_file_name: uploadResult.file.name,
             gemini_file_uri: uploadResult.file.uri,
-            audio_url: permanentAudioUrl
+            audio_url: permanentAudioUrl,
+            mime_type: mimeType
         });
 
     } catch (error) {

@@ -261,7 +261,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
                 const text = await uploadRes.text();
                 throw new Error("Upload failed: " + text);
             }
-            const { gemini_file_name, gemini_file_uri, audio_url } = await uploadRes.json();
+            const { gemini_file_name, gemini_file_uri, audio_url, mime_type: gemini_mime_type } = await uploadRes.json();
 
             // Step 2: Poll for Processing Status
             let state = "PROCESSING";
@@ -283,7 +283,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     file_uri: gemini_file_uri,
-                    mime_type: file.type || "audio/mp3" // Default to mp3 if blob type missing
+                    mime_type: gemini_mime_type || file.type || "audio/mp3"
                 })
             });
 

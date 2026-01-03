@@ -45,7 +45,7 @@ export const TranscriptionProvider = ({ children }) => {
                 const text = await uploadRes.text();
                 throw new Error("Upload failed: " + text);
             }
-            const { gemini_file_name, gemini_file_uri, audioUrl } = await uploadRes.json();
+            const { gemini_file_name, gemini_file_uri, audio_url, mime_type: gemini_mime_type } = await uploadRes.json();
 
             // 2. Poll for Processing Status
             let state = "PROCESSING";
@@ -66,13 +66,13 @@ export const TranscriptionProvider = ({ children }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     file_uri: gemini_file_uri,
-                    mime_type: file.type || "audio/mp3"
+                    mime_type: gemini_mime_type || file.type || "audio/mp3"
                 })
             });
 
             if (!genRes.ok) throw new Error("Transcript generation failed");
             const transData = await genRes.json();
-            transData.audioUrl = audioUrl; // Merge back audioUrl for saving
+            transData.audio_url = audio_url; // Merge back audio_url for saving
 
             // 2. Auto-Save to DB
             const saveRes = await fetch('/api/transcripts', {
@@ -84,7 +84,7 @@ export const TranscriptionProvider = ({ children }) => {
                     date: date || new Date().toISOString().split('T')[0],
                     content: transData.transcript,
                     notes: doctorNotes || "",
-                    audio_url: transData.audioUrl,
+                    audio_url: transData.audio_url,
                     assessment_text: null
                 })
             });
