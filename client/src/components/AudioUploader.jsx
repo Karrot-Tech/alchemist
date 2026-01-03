@@ -12,6 +12,8 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
     const [recordingTime, setRecordingTime] = useState(0);
     const [audioBlob, setAudioBlob] = useState(null);
     const [audioLevel, setAudioLevel] = useState(0); // 0-255 for visualizer
+    const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+    const audioRef = useRef(null);
 
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
@@ -95,11 +97,32 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
     };
 
     const resetRecording = () => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
         setAudioBlob(null);
         setFile(null);
         setRecordingTime(0);
         setAudioLevel(0);
+        setIsPreviewPlaying(false);
         setError('');
+    };
+
+    const togglePreview = () => {
+        if (isPreviewPlaying) {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+            setIsPreviewPlaying(false);
+        } else {
+            const audio = new Audio(URL.createObjectURL(audioBlob));
+            audioRef.current = audio;
+            audio.onended = () => setIsPreviewPlaying(false);
+            audio.play();
+            setIsPreviewPlaying(true);
+        }
     };
 
     const formatTime = (seconds) => {
@@ -112,6 +135,13 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
         if (!file) {
             setError('Please select a file or record audio first.');
             return;
+        }
+
+        // Stop preview if playing
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+            setIsPreviewPlaying(false);
         }
 
         setIsProcessing(true);
@@ -255,13 +285,15 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
                                             <X size={18} /> Retake
                                         </button>
                                         <button
-                                            onClick={() => {
-                                                const audio = new Audio(URL.createObjectURL(audioBlob));
-                                                audio.play();
-                                            }}
-                                            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold flex items-center gap-2 transition-all text-white shadow-lg shadow-indigo-900/50"
+                                            onClick={togglePreview}
+                                            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all text-white shadow-lg 
+                                                ${isPreviewPlaying ? 'bg-red-500 hover:bg-red-600 shadow-red-900/50' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/50'}`}
                                         >
-                                            <Play size={18} fill="currentColor" /> Preview
+                                            {isPreviewPlaying ? (
+                                                <><Square size={18} fill="currentColor" /> Stop Preview</>
+                                            ) : (
+                                                <><Play size={18} fill="currentColor" /> Preview</>
+                                            )}
                                         </button>
                                     </div>
                                     {!isDurationValid && (
