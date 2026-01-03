@@ -228,7 +228,7 @@ function TemplateManager() {
                     ) : (
                         <div className="space-y-3">
                             {templates.map(t => (
-                                <div key={t.id} className="p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors group">
+                                <div key={t.id} className="p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors group even:bg-slate-100/40">
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <h3 className="font-bold text-slate-900">{t.name}</h3>

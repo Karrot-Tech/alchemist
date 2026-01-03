@@ -131,7 +131,7 @@ const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
                                 <button
                                     key={p.id}
                                     onClick={() => setSelectedPatientId(p.id)}
-                                    className={`w-full text-left p-4 hover:bg-slate-100 transition-colors flex items-center justify-between group even:bg-slate-50/50 ${selectedPatientId === p.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'border-l-4 border-transparent'}`}
+                                    className={`w-full text-left p-4 hover:bg-slate-100 transition-colors flex items-center justify-between group even:bg-slate-100/40 ${selectedPatientId === p.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'border-l-4 border-transparent'}`}
                                 >
                                     <div>
                                         <p className={`font-medium text-sm ${selectedPatientId === p.id ? 'text-indigo-900' : 'text-slate-700'}`}>{p.name}</p>
@@ -182,7 +182,7 @@ const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
                                     {patientRecords.map(t => (
                                         <div
                                             key={t.id}
-                                            className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                                            className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group even:bg-slate-100/40"
                                             onClick={() => onSelectTranscript(t)}
                                         >
                                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">

@@ -82,7 +82,7 @@ const ActivityHistory = ({ onSelectTranscript, onSelectDraft }) => {
                             <div
                                 key={session.id}
                                 onClick={() => isUnassigned && onSelectDraft ? onSelectDraft(session) : onSelectTranscript(session)}
-                                className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer group even:bg-slate-50/50"
+                                className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer group even:bg-slate-100/40"
                             >
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                                     <div className="flex items-center gap-4">
