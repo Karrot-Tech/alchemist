@@ -177,7 +177,7 @@ function TemplateManager() {
 
 
     return (
-        <div className="px-8 py-16 max-w-6xl mx-auto animate-fade-in pb-20 text-slate-900">
+        <div className="px-8 py-8 max-w-6xl mx-auto animate-fade-in pb-20 text-slate-900">
 
             <div className="flex justify-between items-center mb-10">
                 <div>
