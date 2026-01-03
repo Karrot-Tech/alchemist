@@ -55,12 +55,12 @@ function App() {
 
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-900">
         <div className="flex flex-col items-center gap-4">
           {showTimeoutError ? (
             <>
-              <div className="text-red-400 text-xl font-bold">Authentication Timeout</div>
-              <p className="text-slate-400 max-w-md text-center">
+              <div className="text-red-500 text-xl font-bold">Authentication Timeout</div>
+              <p className="text-slate-500 max-w-md text-center">
                 Clerk failed to initialize. Please check your network connection or try reloading.
               </p>
               <button
@@ -72,8 +72,8 @@ function App() {
             </>
           ) : (
             <>
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-400"></div>
-              <p className="text-slate-400">Initializing Authentication...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
+              <p className="text-slate-500">Initializing Authentication...</p>
             </>
           )}
         </div>
