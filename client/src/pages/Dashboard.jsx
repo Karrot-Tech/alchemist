@@ -43,7 +43,7 @@ const Dashboard = ({ onNavigate }) => {
             </header>
 
             {/* Stats Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                 <StatCard
                     label="Active Patients"
                     value={data.stats.total_patients}
@@ -55,6 +55,12 @@ const Dashboard = ({ onNavigate }) => {
                     value={data.stats.total_sessions}
                     icon={<FileText size={18} />}
                     color="purple"
+                />
+                <StatCard
+                    label="Templates"
+                    value={data.stats.total_templates || 0}
+                    icon={<Settings size={18} />}
+                    color="emerald"
                 />
             </div>
 

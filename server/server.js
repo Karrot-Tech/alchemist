@@ -627,11 +627,12 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
     console.log("Dashboard Endpoint Hit. User:", req.auth.userId);
     try {
         console.log("Fetching patients and transcripts...");
-        const [patients, transcripts] = await Promise.all([
+        const [patients, transcripts, templates] = await Promise.all([
             promptService.getAllPatients(req.auth.userId),
-            promptService.getAllTranscripts(req.auth.userId)
+            promptService.getAllTranscripts(req.auth.userId),
+            promptService.getAllTemplates(req.auth.userId)
         ]);
-        console.log(`Fetched ${patients.length} patients, ${transcripts.length} transcripts`);
+        console.log(`Fetched ${patients.length} patients, ${transcripts.length} transcripts, ${templates.length} templates`);
 
         const recentActivity = transcripts.slice(0, 3).map(t => ({
             id: t.id,
@@ -644,7 +645,8 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
         // Calculate simplified stats
         const stats = {
             total_patients: patients.length,
-            total_sessions: transcripts.length
+            total_sessions: transcripts.length,
+            total_templates: templates.length
         };
 
         res.json({ stats, recentActivity });
