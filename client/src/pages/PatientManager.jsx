@@ -181,7 +181,7 @@ const PatientManager = () => {
                                     <td className="px-6 py-4 text-right">
                                         <button
                                             onClick={() => startEdit(p)}
-                                            className="text-slate-400 hover:text-indigo-600 p-2 rounded-lg hover:bg-indigo-50 transition-colors opacity-0 group-hover:opacity-100"
+                                            className="text-slate-400 hover:text-indigo-600 p-2 rounded-lg hover:bg-indigo-50 transition-colors"
                                             title="Edit Patient"
                                         >
                                             <Pencil size={16} />

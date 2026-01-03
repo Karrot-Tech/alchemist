@@ -28,15 +28,15 @@ const Layout = ({ children, activeTab, onNavigate }) => {
             {/* Mobile Header */}
             <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 z-30">
                 <div className="flex items-center">
+                    <button
+                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        className="p-2 mr-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+                    >
+                        {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                    </button>
                     <img src="/favicon.png" alt="Logo" className="h-8 w-8 mr-3 rounded-lg" />
                     <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-cyan-600 to-indigo-600 bg-clip-text text-transparent">Alchemist AI</span>
                 </div>
-                <button
-                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"
-                >
-                    {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                </button>
             </header>
 
             {/* Overlay for mobile */}

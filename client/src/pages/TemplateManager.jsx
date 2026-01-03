@@ -23,7 +23,27 @@ function TemplateManager() {
 
     // ... useEffect ...
 
-    // ... fetchTemplates ...
+    const fetchTemplates = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/templates');
+            const data = await res.json();
+            if (res.ok) {
+                setTemplates(data);
+            } else {
+                toast.error("Failed to load templates");
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Error loading templates");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchTemplates();
+    }, []);
 
     const handleAnalyze = async () => {
         if (!file) return toast.error("Please select a file first");
