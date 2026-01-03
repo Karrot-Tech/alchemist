@@ -180,18 +180,18 @@ const NewSession = ({ onNavigate, initialSessionData }) => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto p-10 animate-fade-in text-slate-900">
+        <div className="max-w-4xl mx-auto p-4 md:p-10 animate-fade-in text-slate-900">
             <div className="mb-8">
                 <button onClick={() => onNavigate('dashboard')} className="text-slate-500 hover:text-indigo-600 font-medium mb-4 flex items-center transition-colors">
                     <ArrowLeft size={18} className="mr-2" />
                     Back to Dashboard
                 </button>
-                <h2 className="text-3xl font-bold tracking-tight text-slate-900">Patient Sessions Transcript</h2>
+                <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">Patient Sessions Transcript</h2>
                 <p className="text-slate-500 mt-2">Upload a recording or start a new dictation.</p>
             </div>
 
             {!transcriptData ? (
-                <div className="bg-white p-12 rounded-2xl shadow-sm border border-slate-200 text-center transition-all hover:shadow-md">
+                <div className="bg-white p-4 md:p-12 rounded-2xl shadow-sm border border-slate-200 text-center transition-all hover:shadow-md">
                     <div className="max-w-md mx-auto">
                         <AudioUploader
                             onTranscriptionComplete={handleTranscriptionComplete}
@@ -208,8 +208,8 @@ const NewSession = ({ onNavigate, initialSessionData }) => {
                             <h3 className="text-lg font-bold text-slate-800">Transcription Complete</h3>
                         </div>
 
-                        <div className="flex items-end gap-6">
-                            <div className="flex-1">
+                        <div className="flex flex-col lg:flex-row lg:items-end gap-6">
+                            <div className="flex-1 w-full">
                                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Patient</label>
                                 {!isCreatingPatient ? (
                                     <select
@@ -241,7 +241,7 @@ const NewSession = ({ onNavigate, initialSessionData }) => {
                                     </div>
                                 )}
                             </div>
-                            <div className="w-48">
+                            <div className="w-full lg:w-48">
                                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Date</label>
                                 <input
                                     type="date"
@@ -253,7 +253,7 @@ const NewSession = ({ onNavigate, initialSessionData }) => {
                             <button
                                 onClick={handleSaveTranscript}
                                 disabled={saveStatus !== 'idle'}
-                                className={`h-[58px] px-8 rounded-xl font-bold text-white transition-all shadow-lg active:scale-95 flex items-center space-x-2 ${saveStatus === 'success' ? 'bg-emerald-500 shadow-emerald-200' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
+                                className={`h-[58px] px-8 rounded-xl font-bold text-white transition-all shadow-lg active:scale-95 flex items-center justify-center space-x-2 w-full lg:w-auto ${saveStatus === 'success' ? 'bg-emerald-500 shadow-emerald-200' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
                                     }`}
                             >
                                 <Save size={20} />

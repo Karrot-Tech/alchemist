@@ -340,7 +340,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
                         <div className="relative z-10 flex flex-col items-center justify-center min-h-[220px]">
                             {isRecording ? (
                                 <>
-                                    <div className="text-5xl font-mono font-bold tracking-wider mb-2 text-white relative z-20">
+                                    <div className="text-4xl md:text-5xl font-mono font-bold tracking-wider mb-2 text-white relative z-20">
                                         {formatTime(recordingTime)}
                                         {/* Visualizer Ring - Glow Effect */}
                                         <div
@@ -386,27 +386,27 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
                                         <CheckCircle className="text-emerald-400" size={16} />
                                         <span className="font-mono text-lg">{formatTime(recordingTime)}</span>
                                     </div>
-                                    <div className="flex gap-4">
+                                    <div className="flex flex-wrap justify-center gap-3 w-full">
                                         <button
                                             onClick={resetRecording}
-                                            className="px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold flex items-center gap-2 transition-all border border-slate-700 text-slate-300"
+                                            className="px-4 md:px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold flex items-center gap-2 transition-all border border-slate-700 text-slate-300"
                                         >
                                             <X size={18} /> Retake
                                         </button>
                                         <button
                                             onClick={togglePreview}
-                                            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all text-white shadow-lg 
+                                            className={`px-4 md:px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all text-white shadow-lg 
                                                 ${isPreviewPlaying ? 'bg-red-500 hover:bg-red-600 shadow-red-900/50' : 'bg-indigo-600 hover:bg-indigo-50 shadow-indigo-900/50'}`}
                                         >
                                             {isPreviewPlaying ? (
-                                                <><Square size={18} fill="currentColor" /> Stop Preview</>
+                                                <><Square size={18} fill="currentColor" /> Stop</>
                                             ) : (
                                                 <><Play size={18} fill="currentColor" /> Preview</>
                                             )}
                                         </button>
                                         <button
                                             onClick={handleDownloadRecording}
-                                            className="px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold flex items-center gap-2 transition-all border border-slate-700 text-slate-300"
+                                            className="px-4 md:px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold flex items-center gap-2 transition-all border border-slate-700 text-slate-300"
                                             title="Download Recording"
                                         >
                                             <Download size={18} />
