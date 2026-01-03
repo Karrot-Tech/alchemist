@@ -298,8 +298,15 @@ app.post('/api/upload', requireAuth, upload.single('audio'), async (req, res) =>
             else if (finalPath.endsWith('.mp4') || finalPath.endsWith('.m4a')) mimeType = "audio/mp4";
         }
 
-        // Normalize x-m4a to mp4 but keep any codec strings for mp4
+        // Normalize x-m4a to mp4
         if (mimeType.startsWith('audio/x-m4a')) mimeType = mimeType.replace('audio/x-m4a', 'audio/mp4');
+
+        // CRITICAL PRODUCTION FIX: Aggressively strip codec info
+        // Browsers often report 'audio/mp4;codecs=opus' but Gemini (especially v3) expects 'audio/mp4'
+        if (mimeType.includes(';')) {
+            console.log(`[Async] Stripping codec info: ${mimeType} -> ${mimeType.split(';')[0]}`);
+            mimeType = mimeType.split(';')[0];
+        }
 
         mimeType = mimeType || "audio/mp3";
         console.log(`[Async] Uploading to Gemini. Final Path: ${path.basename(finalPath)}, MIME: ${mimeType}`);
@@ -372,9 +379,13 @@ app.post('/api/generate', requireAuth, async (req, res) => {
         if (!file_uri) return res.status(400).json({ error: "No file URI provided" });
 
         // Use the mime_type passed from client (which should match what we uploaded)
-        let normalizedMime = mime_type;
-        if (normalizedMime === 'audio/x-m4a') normalizedMime = "audio/mp4";
-        normalizedMime = normalizedMime || "audio/mp3";
+        let normalizedMime = mime_type || "audio/mp3";
+        if (normalizedMime.startsWith('audio/x-m4a')) normalizedMime = "audio/mp4";
+
+        // Final fallback stripping for the transcription call
+        if (normalizedMime.includes(';')) {
+            normalizedMime = normalizedMime.split(';')[0];
+        }
 
         console.log(`[Async] Generating transcript for URI: ${file_uri}, MIME: ${normalizedMime}`);
 
