@@ -1,0 +1,8 @@
+# Default ignores
+node_modules
+.git
+.env
+.DS_Store
+
+# We WANT to upload the client build artifacts
+!client/dist

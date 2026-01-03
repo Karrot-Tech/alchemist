@@ -10,14 +10,16 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@clerk/clerk-sdk-node": "^4.13.23",
     "@google/generative-ai": "^0.24.1",
+    "@vercel/blob": "^2.0.0",
     "cors": "^2.8.5",
     "docx": "^9.5.1",
     "docxtemplater": "^3.67.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "multer": "^2.0.2",
-    "pizzip": "^3.2.0",
-    "sqlite3": "^5.1.7"
+    "pg": "^8.16.3",
+    "pizzip": "^3.2.0"
   }
 }

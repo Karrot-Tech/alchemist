@@ -4,42 +4,9 @@ const path = require('path');
 const dbPath = path.resolve(__dirname, '../prompts.db');
 const db = new sqlite3.Database(dbPath);
 
-const PROMPTS = [
-    {
-        key: 'transcribe_audio',
-        text: "Transcribe this audio strictly. Do not summarize. Identify speakers if possible. Output only the transcript text."
-    },
-    {
-        key: 'validate_transcript',
-        text: `Analyze the quality of the following transcript.
-        
-        <transcript>
-        {{transcript}}
-        </transcript>
-
-        Provide a structured JSON assessment including quality_score (0-100), clarity, and suggestions.`
-    },
-    {
-        key: 'assess_soap',
-        text: `
-        You are an expert Psychiatrist. Your goal is to create a structured SOAP Note based *strictly* on the provided patient transcript.
-
-        <instructions>
-        1.  **Grounding**: Do not hallucinate symptoms, medications, or events. If information is not present in the transcript, state "Not Reported" or leave it generic.
-        2.  **Terminology**: Use professional medical terminology.
-        3.  **Format**: Return *only* a valid JSON object.
-        </instructions>
-
-        <doctor_notes>
-        {{notes}}
-        </doctor_notes>
-        
-        <transcript>
-        {{transcript}}
-        </transcript>
-        `
-    }
-];
+// Load prompts from external .md files
+const { loadPrompts } = require('../prompts/loader');
+const PROMPTS = loadPrompts();
 
 db.serialize(() => {
     console.log("Initializing database...");
@@ -55,15 +22,29 @@ db.serialize(() => {
         description TEXT,
         file_path TEXT,
         prompt_text TEXT,
-        schema_json TEXT
+        schema_json TEXT,
+        owner_id TEXT -- NULL for Global, Clerk ID for Private
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS patients (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        mrn TEXT, 
+        dob TEXT,
+        doctor_id TEXT NOT NULL, -- Clerk User ID
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS transcripts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        patient_id INTEGER,
         patient_name TEXT NOT NULL,
         date TEXT NOT NULL,
         content TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        notes TEXT,
+        doctor_id TEXT NOT NULL, -- Linked to doctor for fast access
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(patient_id) REFERENCES patients(id)
     )`);
     console.log("Database initialized.");
 

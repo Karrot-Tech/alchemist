@@ -1,18 +1,24 @@
+
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { Upload, FileText, CheckCircle, Pencil } from 'lucide-react'; // Assuming lucide-react for the Pencil icon
 
 function TemplateManager() {
     const [templates, setTemplates] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [analyzing, setAnalyzing] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
-    // Create New State
+    // Form State
     const [file, setFile] = useState(null);
-    const [analysis, setAnalysis] = useState(null); // { placeholders, schema_suggestion, prompt_suggestion, file_path }
-
-    // Edit Form State
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [promptText, setPromptText] = useState('');
-    const [schemaJson, setSchemaJson] = useState('');
+    const [schemaJson, setSchemaJson] = useState('{}');
+    const [filePath, setFilePath] = useState(null); // Server path
+
+    // Edit State
+    const [editingTemplate, setEditingTemplate] = useState(null);
 
     useEffect(() => {
         fetchTemplates();
@@ -23,192 +29,261 @@ function TemplateManager() {
             const res = await fetch('/api/templates');
             const data = await res.json();
             setTemplates(data || []);
+            setLoading(false);
         } catch (err) {
-            console.error("Failed to fetch templates", err);
-        }
-    };
-
-    const handleFileChange = (e) => {
-        setFile(e.target.files[0]);
-        setAnalysis(null);
-    };
-
-    const handleAnalyze = async () => {
-        if (!file) return;
-        setLoading(true);
-        const formData = new FormData();
-        formData.append('template', file);
-
-        try {
-            const res = await fetch('/api/templates/analyze', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!res.ok) {
-                const errText = await res.text();
-                console.error("Analysis Error Payload:", errText);
-                throw new Error(`Server ${res.status}: ${errText}`);
-            }
-
-            const data = await res.json();
-            setAnalysis(data);
-
-            // Pre-fill form
-            setName(file.name.replace('.docx', ''));
-            setPromptText(data.prompt_suggestion);
-            setSchemaJson(JSON.stringify(data.schema_suggestion, null, 2));
-
-        } catch (err) {
-            alert("Analysis Failed: " + err.message);
-        } finally {
+            toast.error("Failed to load templates");
             setLoading(false);
         }
     };
 
-    const handleSave = async () => {
-        if (!name || !analysis || !promptText || !schemaJson) {
-            alert("Please complete all fields");
-            return;
-        }
+    const handleAnalyze = async () => {
+        if (!file) return toast.error("Please select a file first");
+        setAnalyzing(true);
+        const formData = new FormData();
+        formData.append('template', file);
 
         try {
-            let parsedSchema;
-            try {
-                parsedSchema = JSON.parse(schemaJson);
-            } catch (e) {
-                alert("Invalid JSON Schema");
-                return;
-            }
-
-            const payload = {
-                name,
-                description,
-                file_path: analysis.file_path,
-                prompt_text: promptText,
-                schema_json: parsedSchema
-            };
-
-            const res = await fetch('/api/templates', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            const res = await fetch('/api/templates/analyze', { method: 'POST', body: formData });
+            const data = await res.json();
 
             if (res.ok) {
-                alert("Template Saved!");
-                setFile(null);
-                setAnalysis(null);
-                fetchTemplates();
+                setPromptText(data.prompt_suggestion);
+                setSchemaJson(JSON.stringify(data.schema_suggestion, null, 2));
+                setFilePath(data.file_path);
+                toast.success("Analysis complete");
             } else {
-                const err = await res.json();
-                alert("Save Failed: " + err.error);
+                toast.error("Analysis failed: " + data.error);
             }
         } catch (err) {
-            alert("Error saving: " + err.message);
+            console.error(err);
+            toast.error("Analysis error");
+        } finally {
+            setAnalyzing(false);
         }
     };
 
+    const handleRefreshSchema = async () => {
+        if (!editingTemplate) return;
+        setRefreshing(true);
+        try {
+            const res = await fetch('/api/templates/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ template_id: editingTemplate.id })
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                setPromptText(data.prompt_suggestion);
+                setSchemaJson(JSON.stringify(data.schema_suggestion, null, 2));
+                toast.success("Schema refreshed from original file");
+            } else {
+                toast.error("Refresh failed: " + data.error);
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Refresh error");
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!name || !promptText || !schemaJson) return toast.error("Missing required fields");
+
+        try {
+            JSON.parse(schemaJson); // Validate JSON
+        } catch (e) {
+            return toast.error("Invalid JSON Schema format");
+        }
+
+        const url = editingTemplate ? `/ api / templates / ${editingTemplate.id} ` : '/api/templates';
+        const method = editingTemplate ? 'PUT' : 'POST';
+
+        const payload = {
+            name,
+            description,
+            prompt_text: promptText,
+            schema_json: schemaJson,
+            file_path: filePath
+        };
+
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                toast.success(editingTemplate ? "Template updated" : "Template saved");
+                fetchTemplates();
+                resetForm();
+            } else {
+                toast.error("Save failed: " + data.error);
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Save error");
+        }
+    };
+
+    const startEdit = (t) => {
+        setEditingTemplate(t);
+        setName(t.name);
+        setDescription(t.description);
+        setPromptText(t.prompt_text);
+        // Logic check: Setup_db says schema_json is TEXT. promptService stringifies on insert.
+        // So promptService.getAllTemplates returns it as string.
+        // If it's stored as object in promptService.getAllTemplates (DB returns string), we might need to pretty print it.
+        // Let's assume it comes back as string.
+        try {
+            // If it's already a string, parse it to object then stringify for pretty print
+            const obj = JSON.parse(t.schema_json);
+            setSchemaJson(JSON.stringify(obj, null, 2));
+        } catch (e) {
+            setSchemaJson(t.schema_json);
+        }
+
+        setFilePath(t.file_path);
+        // Skip file selection for existing templates as we use server path
+        setFile(null);
+    };
+
+    const resetForm = () => {
+        setEditingTemplate(null);
+        setName(''); setDescription(''); setPromptText(''); setSchemaJson('{}');
+        setFile(null); setFilePath(null);
+        document.getElementById('file-upload').value = "";
+    };
+
+
     return (
-        <div className="max-w-4xl mx-auto p-4">
-            <h2 className="text-2xl font-bold mb-6 text-gray-800">Template Manager</h2>
+        <div className="px-8 py-16 max-w-6xl mx-auto animate-fade-in pb-20 text-slate-900">
 
-            {/* Upload Section */}
-            <div className="bg-white p-6 rounded-lg shadow mb-8">
-                <h3 className="text-lg font-semibold mb-4">1. Upload New Template (.docx)</h3>
-                <div className="flex gap-4 items-center">
-                    <input
-                        type="file"
-                        accept=".docx"
-                        onChange={handleFileChange}
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                    />
-                    <button
-                        onClick={handleAnalyze}
-                        disabled={!file || loading}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
-                    >
-                        {loading ? "Analyzing..." : "Analyze"}
+            <div className="flex justify-between items-center mb-10">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2">Template Manager</h1>
+                    <p className="text-slate-500">Upload DOCX templates to define assessments.</p>
+                </div>
+                {editingTemplate && (
+                    <button onClick={resetForm} className="text-slate-500 hover:text-slate-800 font-medium px-4 py-2 hover:bg-slate-100 rounded-lg transition-all">
+                        Cancel Edit
                     </button>
-                </div>
+                )}
             </div>
 
-            {/* Analysis Result / Editor */}
-            {analysis && (
-                <div className="bg-white p-6 rounded-lg shadow mb-8 border border-indigo-100">
-                    <h3 className="text-lg font-semibold mb-4">2. AI Configuration</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left: Editor */}
+                <div className="space-y-6">
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h2 className="font-bold text-lg mb-4 text-slate-800">{editingTemplate ? `Edit: ${editingTemplate.name}` : '1. Upload & Analyze'}</h2>
 
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700">Template Name</label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
-                        />
-                    </div>
-
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700">Description</label>
-                        <input
-                            type="text"
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Prompt (System Instruction)</label>
-                            <textarea
-                                value={promptText}
-                                onChange={(e) => setPromptText(e.target.value)}
-                                rows={15}
-                                className="w-full p-2 border rounded font-mono text-sm bg-gray-50"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">JSON Schema</label>
-                            <textarea
-                                value={schemaJson}
-                                onChange={(e) => setSchemaJson(e.target.value)}
-                                rows={15}
-                                className="w-full p-2 border rounded font-mono text-sm bg-gray-50"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="mt-6 flex justify-end">
-                        <button
-                            onClick={handleSave}
-                            className="px-6 py-2 bg-green-600 text-white rounded font-medium hover:bg-green-700"
-                        >
-                            Save Template
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* List Existing */}
-            <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-lg font-semibold mb-4">Existing Templates</h3>
-                <ul className="divide-y divide-gray-200">
-                    {templates.map(t => (
-                        <li key={t.id} className="py-4">
-                            <div className="flex justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-900">{t.name}</p>
-                                    <p className="text-sm text-gray-500">{t.description}</p>
+                        {!editingTemplate ? (
+                            <div className="mb-6">
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Select Template File (.docx)</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        id="file-upload"
+                                        type="file"
+                                        accept=".docx"
+                                        onChange={e => setFile(e.target.files[0])}
+                                        className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                                    />
+                                    <button
+                                        onClick={handleAnalyze}
+                                        disabled={analyzing || !file}
+                                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                    >
+                                        {analyzing ? 'Analyzing...' : 'Analyze'}
+                                    </button>
                                 </div>
-                                <div className="text-xs text-gray-400">ID: {t.id}</div>
                             </div>
-                        </li>
-                    ))}
-                    {templates.length === 0 && <p className="text-gray-500 text-sm">No templates found.</p>}
-                </ul>
-            </div>
+                        ) : (
+                            <div className="mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                <p className="text-sm text-slate-500 mb-2">Editing template file: <span className="font-mono text-xs">{editingTemplate.file_path}</span></p>
+                                <button
+                                    onClick={handleRefreshSchema}
+                                    disabled={refreshing}
+                                    className="text-indigo-600 text-sm font-bold hover:underline flex items-center"
+                                >
+                                    {refreshing ? 'Refreshing...' : '↻ Refresh Schema from File'}
+                                </button>
+                            </div>
+                        )}
 
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Display Name</label>
+                                <input className="w-full p-2 border rounded-lg" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Initial Assessment" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Description</label>
+                                <input className="w-full p-2 border rounded-lg" value={description} onChange={e => setDescription(e.target.value)} placeholder="Short description..." />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h2 className="font-bold text-lg mb-4 text-slate-800">2. Review AI Configuration</h2>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Prompt Instructions</label>
+                                <textarea
+                                    className="w-full p-3 border rounded-lg h-32 text-sm font-mono"
+                                    value={promptText}
+                                    onChange={e => setPromptText(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">JSON Schema</label>
+                                <textarea
+                                    className="w-full p-3 border rounded-lg h-48 text-sm font-mono"
+                                    value={schemaJson}
+                                    onChange={e => setSchemaJson(e.target.value)}
+                                />
+                            </div>
+                            <button
+                                onClick={handleSave}
+                                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 transition-all"
+                            >
+                                {editingTemplate ? 'Update Template' : 'Save Template'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right: List */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
+                    <h2 className="font-bold text-lg mb-6 text-slate-800">Existing Templates</h2>
+                    {loading ? (
+                        <p className="text-slate-400">Loading...</p>
+                    ) : templates.length === 0 ? (
+                        <p className="text-slate-400">No templates found.</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {templates.map(t => (
+                                <div key={t.id} className="p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors group">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h3 className="font-bold text-slate-900">{t.name}</h3>
+                                            <p className="text-xs text-slate-500 mt-1">{t.description}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => startEdit(t)}
+                                            className="text-slate-400 hover:text-indigo-600 p-2 opacity-0 group-hover:opacity-100 transition-all"
+                                            title="Edit Template"
+                                        >
+                                            <Pencil size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

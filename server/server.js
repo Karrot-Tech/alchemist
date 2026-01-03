@@ -7,26 +7,108 @@ const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 const path = require("path");
 const cors = require('cors');
-require('dotenv').config();
+const { put } = require('@vercel/blob');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const promptService = require('./services/promptService');
+const { loadPrompts } = require('./prompts/loader');
+const os = require('os');
+
+const PROMPTS = loadPrompts();
+
+// Helper to get default prompt text
+const getDefaultPrompt = (key) => PROMPTS.find(p => p.key === key)?.text || "";
 
 const app = express();
+// --- System Agents (Brains) Management ---
+const SYSTEM_AGENTS = {
+    'transcriber': { name: 'Transcriber Bot', file: 'transcribe_audio.md', desc: 'Converts raw audio to text.' },
+    'analyst': { name: 'Clinical Analyst', file: 'assess_soap.md', desc: 'Generates clinical assessments (SOAP).' },
+    'architect': { name: 'Template Architect', file: 'analyze_template.md', desc: 'Analyzes DOCX templates for structure.' },
+    'auditor': { name: 'Quality Auditor', file: 'validate_transcript.md', desc: 'Checks transcript quality and completeness.' }
+};
+
+app.get('/api/system-prompts', (req, res) => {
+    res.json(Object.entries(SYSTEM_AGENTS).map(([key, val]) => ({ id: key, ...val })));
+});
+
+app.get('/api/system-prompts/:id', async (req, res) => {
+    const agent = SYSTEM_AGENTS[req.params.id];
+    if (!agent) return res.status(404).json({ error: "Agent not found" });
+
+    try {
+        const content = await promptService.loadSystemPrompt(agent.file);
+        res.json({ id: req.params.id, content });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to load prompt" });
+    }
+});
+
+app.put('/api/system-prompts/:id', async (req, res) => {
+    const agent = SYSTEM_AGENTS[req.params.id];
+    if (!agent) return res.status(404).json({ error: "Agent not found" });
+
+    try {
+        const { content } = req.body;
+        await promptService.saveSystemPrompt(agent.file, content);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to save prompt" });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 
 app.get('/ping', (req, res) => res.send('pong')); // DEBUG ROUTE
 
+
 // Middleware (Moved Up)
+const requireAuth = require('./middleware/auth');
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// --- Transcript Management Routes ---
-app.post('/api/transcripts', async (req, res) => {
+// --- Patient Management Routes (Protected) ---
+app.get('/api/patients', requireAuth, async (req, res) => {
     try {
-        const { patient_name, date, content } = req.body;
+        const patients = await promptService.getAllPatients(req.auth.userId);
+        res.json(patients);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to load patients" });
+    }
+});
+
+app.post('/api/patients', requireAuth, async (req, res) => {
+    try {
+        const { name, mrn, dob } = req.body;
+        if (!name) return res.status(400).json({ error: "Patient name is required" });
+        const newPatient = await promptService.createPatient(name, mrn, dob, req.auth.userId);
+        res.json(newPatient);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to create patient" });
+    }
+});
+
+app.put('/api/patients/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, mrn, dob } = req.body;
+        if (!name) return res.status(400).json({ error: "Patient name is required" });
+
+        const updated = await promptService.updatePatient(id, name, mrn, dob, req.auth.userId);
+        res.json(updated);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to update patient" });
+    }
+});
+
+// --- Transcript Management Routes (Protected) ---
+app.post('/api/transcripts', requireAuth, async (req, res) => {
+    try {
+        const { patient_name, date, content, notes, patient_id } = req.body;
         if (!patient_name || !date || !content) {
             return res.status(400).json({ error: "Missing required fields" });
         }
-        const id = await promptService.saveTranscript(patient_name, date, content);
+        // Clerk req.auth.userId
+        const id = await promptService.saveTranscript(patient_name, date, content, notes, patient_id, req.auth.userId);
         res.json({ success: true, id });
     } catch (error) {
         console.error("Save transcript error:", error);
@@ -34,18 +116,18 @@ app.post('/api/transcripts', async (req, res) => {
     }
 });
 
-app.get('/api/transcripts', async (req, res) => {
+app.get('/api/transcripts', requireAuth, async (req, res) => {
     try {
-        const list = await promptService.getAllTranscripts();
+        const list = await promptService.getAllTranscripts(req.auth.userId);
         res.json(list);
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch transcripts" });
     }
 });
 
-app.get('/api/transcripts/:id', async (req, res) => {
+app.get('/api/transcripts/:id', requireAuth, async (req, res) => {
     try {
-        const item = await promptService.getTranscriptById(req.params.id);
+        const item = await promptService.getTranscriptById(req.params.id, req.auth.userId);
         if (!item) return res.status(404).json({ error: "Transcript not found" });
         res.json(item);
     } catch (error) {
@@ -56,12 +138,8 @@ app.get('/api/transcripts/:id', async (req, res) => {
 // (Middleware moved to top)
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Temp storage for uploads
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
-}
-const upload = multer({ dest: 'uploads/' });
+// Multer Memory Storage (for Vercel/Serverless)
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Initialize Gemini
 const apiKey = process.env.GEMINI_API_KEY;
@@ -71,40 +149,43 @@ if (!apiKey) {
 const genAI = new GoogleGenerativeAI(apiKey);
 const fileManager = new GoogleAIFileManager(apiKey);
 
-// Basic Health Check
+// Basic Health Check (Public)
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Alchemist Server is running' });
 });
 
 // ---------------------------------------------------------
-// Endpoint A: Audio-to-Transcript
+// Endpoint A: Audio-to-Transcript (Protected)
 // ---------------------------------------------------------
-app.post('/transcribe', upload.single('audio'), async (req, res) => {
+// Uploads require special handling with Clerk + Multer. 
+// Standard pattern: requireAuth runs first.
+app.post('/transcribe', requireAuth, upload.single('audio'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: "No audio file uploaded" });
         }
 
-        const filePath = req.file.path;
-        console.log(`Processing upload: ${filePath}`);
+        console.log(`Processing upload: ${req.file.originalname}`);
 
-        // 1. Upload to Gemini
+        // 1. Write to temp file (Gemini needs a path)
+        const tempFilePath = path.join(os.tmpdir(), req.file.originalname);
+        fs.writeFileSync(tempFilePath, req.file.buffer);
+
+        // 2. Upload to Gemini
         let mimeType = req.file.mimetype;
-        // Fix for "application/octet-stream" issue from some browsers/OS
         if (mimeType === 'application/octet-stream' && req.file.originalname.endsWith('.mp3')) {
             mimeType = "audio/mp3";
         }
-        // Fallback
         mimeType = mimeType || "audio/mp3";
 
-        const uploadResult = await fileManager.uploadFile(filePath, {
+        const uploadResult = await fileManager.uploadFile(tempFilePath, {
             mimeType: mimeType,
             displayName: req.file.originalname,
         });
 
         console.log(`Uploaded to Gemini: ${uploadResult.file.uri}`);
 
-        // 2. Poll until processing is complete
+        // 3. Poll until processing is complete
         let file = await fileManager.getFile(uploadResult.file.name);
         while (file.state === "PROCESSING") {
             console.log("Processing audio...");
@@ -118,11 +199,13 @@ app.post('/transcribe', upload.single('audio'), async (req, res) => {
 
         console.log(`Audio processed. File State: ${file.state}. Generating transcript...`);
 
-        // 3. Generate Transcript
+        // 4. Generate Transcript
         const modelName = process.env.GEMINI_MODEL_TRANSCRIBE || "gemini-2.0-flash";
-        console.log(`Sending request to ${modelName}...`);
         const model = genAI.getGenerativeModel({ model: modelName });
-        const promptText = await promptService.get('transcribe_audio', "Transcribe this audio strictly. Do not summarize. Identify speakers if possible.");
+
+        const defaultTranscribeText = getDefaultPrompt('transcribe_audio');
+        const promptText = await promptService.get('transcribe_audio', defaultTranscribeText);
+
         const result = await model.generateContent([
             promptText,
             {
@@ -135,27 +218,23 @@ app.post('/transcribe', upload.single('audio'), async (req, res) => {
 
         const transcriptText = result.response.text();
 
-        // Cleanup: Delete local file
-        fs.unlinkSync(filePath);
-        // Optional: Delete from Gemini to save space/privacy
-        // await fileManager.deleteFile(uploadResult.file.name); 
+        // Cleanup: Delete local temp file
+        if (fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+        }
 
         res.json({ transcript: transcriptText });
 
     } catch (error) {
         console.error("Transcribe Error:", error);
         res.status(500).json({ error: error.message });
-        // Try to cleanup local file if it exists
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
     }
 });
 
 // ---------------------------------------------------------
-// Endpoint B: Validation & Quality Score
+// Endpoint B: Validation (Protected)
 // ---------------------------------------------------------
-app.post('/validate', async (req, res) => {
+app.post('/validate', requireAuth, async (req, res) => {
     try {
         const { transcript } = req.body;
         if (!transcript) return res.status(400).json({ error: "No transcript provided" });
@@ -183,7 +262,8 @@ app.post('/validate', async (req, res) => {
             }
         });
 
-        let promptText = await promptService.get('validate_transcript', "Analyze this transcript quality:\n\n{{transcript}}");
+        const defaultValidateText = getDefaultPrompt('validate_transcript');
+        let promptText = await promptService.get('validate_transcript', defaultValidateText);
         promptText = promptText.replace('{{transcript}}', transcript);
         const result = await model.generateContent(promptText);
 
@@ -196,12 +276,11 @@ app.post('/validate', async (req, res) => {
 });
 
 // ---------------------------------------------------------
-// Endpoint C: SOAP Assessment (AI Extraction)
+// Endpoint C: SOAP Assessment (Protected)
 // ---------------------------------------------------------
-app.post('/assess-soap', async (req, res) => {
+app.post('/assess-soap', requireAuth, async (req, res) => {
     try {
         const { transcript, additional_notes, template_id } = req.body;
-        console.log("Received Assessment Request for transcript length:", transcript ? transcript.length : 0);
         if (!transcript) return res.status(400).json({ error: "No transcript provided" });
 
         let schema;
@@ -209,19 +288,16 @@ app.post('/assess-soap', async (req, res) => {
 
         // 1. Determine Schema & Prompt Strategy
         if (template_id) {
-            console.log(`Using custom template ID: ${template_id}`);
             const template = await promptService.getTemplate(template_id);
             if (!template) return res.status(404).json({ error: "Template not found" });
 
             try {
                 schema = JSON.parse(template.schema_json);
             } catch (e) {
-                console.error("Invalid Schema JSON in DB:", template.schema_json);
                 return res.status(500).json({ error: "Corrupt Template Schema" });
             }
             promptTemplate = template.prompt_text;
         } else {
-            console.log("Using Default SOAP Schema");
             // Default SOAP Schema
             schema = {
                 description: "Psychiatric SOAP Note content",
@@ -237,24 +313,8 @@ app.post('/assess-soap', async (req, res) => {
                 required: ["subjective", "objective", "assessment", "plan"]
             };
 
-            const defaultAssessPrompt = `
-            You are an expert Psychiatrist. Your goal is to create a structured SOAP Note based *strictly* on the provided patient transcript.
-
-            <instructions>
-            1.  **Grounding**: Do not hallucinate symptoms, medications, or events. If information is not present in the transcript, state "Not Reported" or leave it generic.
-            2.  **Terminology**: Use professional medical terminology.
-            3.  **Format**: Return *only* a valid JSON object.
-            </instructions>
-
-            <doctor_notes>
-            {{notes}}
-            </doctor_notes>
-            
-            <transcript>
-            {{transcript}}
-            </transcript>
-            `;
-            promptTemplate = await promptService.get('assess_soap', defaultAssessPrompt);
+            const defaultSoapText = getDefaultPrompt('assess_soap');
+            promptTemplate = await promptService.get('assess_soap', defaultSoapText);
         }
 
         const model = genAI.getGenerativeModel({
@@ -266,99 +326,111 @@ app.post('/assess-soap', async (req, res) => {
         });
 
         const prompt = promptTemplate
-            .replace(/\{\{notes\}\}/g, additional_notes || 'None') // Default
-            .replace(/\{\{transcript\}\}/g, transcript)           // Default
-            .replace(/\{doctor_notes\}/g, transcript);            // Custom Template standard
-
-        console.log("FINAL PROMPT SENT TO GEMINI (First 500 chars):", prompt.substring(0, 500));
-        console.log("FINAL PROMPT LENGTH:", prompt.length);
+            .replace(/\{\{notes\}\}/g, additional_notes || 'None')       // Default Prompt key
+            .replace(/\{\{doctor_notes\}\}/g, additional_notes || 'None') // Custom Template key (Strict)
+            .replace(/\{\{transcript\}\}/g, transcript);                 // Transcript
 
         const result = await model.generateContent(prompt);
-        let text = "";
-
-        if (process.env.NODE_ENV !== 'production') {
-            console.log("Gemini Response received.");
-
-            // Deep Debugging
-            const response = await result.response;
-            console.log("Full Response Object:", JSON.stringify(response, null, 2));
-
-            if (!response.candidates || response.candidates.length === 0) {
-                console.error("No candidates returned. Safety filter?");
-                return res.status(500).json({ error: "AI returned no results. Content might be flagged." });
-            }
-
-            const candidate = response.candidates[0];
-            console.log("Finish Reason:", candidate.finishReason);
-            console.log("Safety Ratings:", JSON.stringify(candidate.safetyRatings, null, 2));
-
-            text = response.text();
-            console.log("Raw Assessment Response:", text);
-        } else {
-            text = result.response.text();
-        }
-
-        // Cleanup markdown if present
+        let text = result.response.text();
         text = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
-        // Attempt parse
         try {
             const json = JSON.parse(text);
             res.json(json);
         } catch (parseError) {
-            console.error("JSON Parse Error:", parseError);
-            console.error("Failed Text:", text);
-            // Fallback to partial JSON or error
             res.status(500).json({ error: "Failed to parse AI response as JSON", raw_text: text });
         }
 
     } catch (error) {
-        console.error("Assessment Error (Catch Block):", error);
-        // Ensure we send JSON even on error
         res.status(500).json({ error: error.message || "Unknown Error" });
     }
 });
 
 // ---------------------------------------------------------
-// Endpoint: Template Management
+// Endpoint: Template Management (Protected)
 // ---------------------------------------------------------
 
-// GET /api/templates - List all
-app.get('/api/templates', async (req, res) => {
+// GET /api/templates
+app.get('/api/templates', requireAuth, async (req, res) => {
     try {
-        const templates = await promptService.getAllTemplates();
+        const templates = await promptService.getAllTemplates(req.auth.userId);
         res.json(templates);
-        res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// POST /api/templates/analyze - Upload .docx, extract placeholders, AI generates Schema
-app.post('/api/templates/analyze', upload.single('template'), async (req, res) => {
+// POST /api/templates - Create New (Owner = userId)
+// POST /api/templates - Create New (Owner = userId)
+app.post('/api/templates', requireAuth, upload.single('file'), async (req, res) => {
+    try {
+        const { name, description, prompt_text, schema_json } = req.body;
+        // In multipart/form-data, req.body fields arrive as strings
+        if (!name || !req.file || !prompt_text || !schema_json) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        // Upload to Vercel Blob
+        const blob = await put(req.file.originalname, req.file.buffer, {
+            access: 'public',
+        });
+
+        // Parse schema_json string if needed, but it's passed as string to createTemplate
+        let schemaObj = schema_json;
+        if (typeof schema_json === 'string') {
+            try { schemaObj = JSON.parse(schema_json); } catch (e) { }
+        }
+
+        const id = await promptService.createTemplate(name, description, blob.url, prompt_text, schemaObj, req.auth.userId);
+        res.json({ success: true, id });
+    } catch (err) {
+        console.error("Create Template Error:", err);
+        res.status(500).json({ error: "Failed to create template" });
+    }
+});
+
+// Update Template
+app.put('/api/templates/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, description, prompt_text, schema_json } = req.body;
+
+        await promptService.updateTemplate(id, name, description, prompt_text, JSON.parse(schema_json), req.auth.userId);
+        res.json({ success: true });
+    } catch (err) {
+        console.error("Update error:", err);
+        res.status(500).json({ error: "Failed to update template" });
+    }
+});
+
+// POST /api/templates/analyze (Protected)
+// POST /api/templates/analyze (Protected)
+app.post('/api/templates/analyze', requireAuth, upload.single('template'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No template file uploaded" });
 
-        const filePath = req.file.path;
-        console.log(`Analyzing template: ${filePath}`);
+        console.log(`Analyzing template: ${req.file.originalname}`);
 
-        // 1. Extract Placeholders from Docx
-        const content = fs.readFileSync(filePath, 'binary');
-        const zip = new PizZip(content);
+        // 1. Extract Placeholders from Buffer
+        const zip = new PizZip(req.file.buffer);
         const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
 
-        // Very basic extraction: Use regex on the raw XML content of the document
-        // Docxtemplater doesn't expose a simple "listKeys" API easily without plugins.
-        // Reading document.xml is robust enough for simple {tags}.
-        const docXml = zip.file("word/document.xml").asText();
-        const placeholderRegex = /\{([a-zA-Z0-9_]+)\}/g;
+        const fullText = doc.getFullText();
+        const placeholderRegex = /\{{1,2}\s*([\w\s]+?)\s*\}{1,2}/g;
+
         const matches = new Set();
         let match;
-        while ((match = placeholderRegex.exec(docXml)) !== null) {
-            matches.add(match[1]);
+
+        while ((match = placeholderRegex.exec(fullText)) !== null) {
+            matches.add(match[1].trim());
         }
-        const placeholders = Array.from(matches);
-        console.log("Found placeholders:", placeholders);
+
+        const docXml = zip.file("word/document.xml").asText();
+        while ((match = placeholderRegex.exec(docXml)) !== null) {
+            matches.add(match[1].trim());
+        }
+
+        const placeholders = Array.from(matches).filter(p => p && p.trim().length > 0);
 
         if (placeholders.length === 0) {
             return res.json({
@@ -374,102 +446,132 @@ app.post('/api/templates/analyze', upload.single('template'), async (req, res) =
             generationConfig: { responseMimeType: "application/json" }
         });
 
-        const analysisPrompt = `
-        I have a .docx template with the following placeholders: ${JSON.stringify(placeholders)}.
-        
-        1. Create a JSON Schema (properties) to extract these fields from a psychiatric transcript.
-           - keys MUST match the placeholders exactly.
-           - Add descriptive 'description' for each.
-        2. Create a System Propmt for an AI to extract this information.
-           - Include "doctor_notes" handling in the prompt.
-           - P.S.: Construct the prompt with a dedicated "## SAFEGUARDS" section.
-           - Rule 1: "Strict Grounding: You are forbidden from inventing names, dates, or details."
-           - Rule 2: "Null Handling: If a field is not explicitly present, use 'N/A' or 'Unknown'."
-           - Rule 3: "Privacy: Do not output Real Names unless explicitly confirmed in text. Defaults to 'Patient'."
-
-        Output JSON format:
-        {
-            "schema": { ...json_schema_object... },
-            "prompt_text": "...string..."
-        }
-        `;
+        const defaultAnalyzeText = getDefaultPrompt('analyze_template');
+        const rawPrompt = await promptService.get('analyze_template', defaultAnalyzeText);
+        const analysisPrompt = rawPrompt.replace('{{placeholders}}', JSON.stringify(placeholders));
 
         const result = await model.generateContent(analysisPrompt);
         let text = result.response.text();
-        console.log("Raw Analysis Response:", text);
-
-        // Cleanup markdown
         text = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
-        let aiResponse;
-        try {
-            aiResponse = JSON.parse(text);
-        } catch (parseErr) {
-            console.error("Failed to parse Analysis JSON:", text);
-            throw new Error("AI returned invalid JSON: " + text.substring(0, 50) + "...");
-        }
-
-        // Cleanup local file? Keep it if we are going to save it later.
-        // For now, client uploads again to Save, so specific temp file can be deleted?
-        // Actually, we want to return the 'path' so the client can reference it in "Save".
-        // BUT multer 'dest' is temporary. 
-        // We will return the upload path. Client must send it back to 'save'.
+        const analysisResult = JSON.parse(text);
 
         res.json({
             placeholders,
-            file_path: filePath, // Client sends this back to /api/templates confirm
-            schema_suggestion: aiResponse.schema,
-            prompt_suggestion: aiResponse.prompt_text
+            file_path: "PENDING_UPLOAD", // Client will upload in next step if using this flow, or this is just for preview
+            schema_suggestion: analysisResult.schema || {},
+            prompt_suggestion: analysisResult.prompt_text || ""
         });
 
-    } catch (err) {
-        console.error("Template Analysis Error:", err);
-        res.status(500).json({ error: err.message });
+    } catch (error) {
+        console.error("Analysis Error:", error);
+        res.status(500).json({ error: "Analysis failed", details: error.message });
+    }
+});
+
+// POST /api/templates/refresh (Protected)
+app.post('/api/templates/refresh', requireAuth, async (req, res) => {
+    try {
+        const { template_id } = req.body;
+        const template = await promptService.getTemplate(template_id);
+
+        if (!template || !template.file_path) {
+            return res.status(404).json({ error: "Template file not found" });
+        }
+
+        // TODO: ideally check ownership if private template
+        const filePath = template.file_path;
+
+        const content = fs.readFileSync(filePath, 'binary');
+        const zip = new PizZip(content);
+        const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+        const fullText = doc.getFullText();
+
+        const placeholderRegex = /\{{1,2}\s*([\w\s]+?)\s*\}{1,2}/g;
+        const matches = new Set();
+        let match;
+        while ((match = placeholderRegex.exec(fullText)) !== null) {
+            matches.add(match[1].trim());
+        }
+
+        const docXml = zip.file("word/document.xml").asText();
+        while ((match = placeholderRegex.exec(docXml)) !== null) {
+            matches.add(match[1].trim());
+        }
+
+        const placeholders = Array.from(matches).filter(p => p && p.trim().length > 0);
+
+        if (placeholders.length === 0) {
+            return res.json({ placeholders: [], schema_suggestion: {}, prompt_suggestion: "" });
+        }
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash", generationConfig: { responseMimeType: "application/json" } });
+        const defaultAnalyzeText = getDefaultPrompt('analyze_template');
+        const rawPrompt = await promptService.get('analyze_template', defaultAnalyzeText);
+        const analysisPrompt = rawPrompt.replace('{{placeholders}}', JSON.stringify(placeholders));
+
+        const result = await model.generateContent(analysisPrompt);
+        const responseText = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+        const analysisResult = JSON.parse(responseText);
+
+        res.json({
+            placeholders,
+            schema_suggestion: analysisResult.schema || {},
+            prompt_suggestion: analysisResult.prompt_text || ""
+        });
+
+    } catch (error) {
+        console.error("Refresh Error:", error);
+        res.status(500).json({ error: "Refresh failed" });
     }
 });
 
 // ---------------------------------------------------------
-// Endpoint D: Final Document Generation
+// Endpoint D: Final Document Generation (Protected)
 // ---------------------------------------------------------
-app.post('/generate-document', async (req, res) => {
+app.post('/generate-document', requireAuth, async (req, res) => {
     try {
-        // Now accepts the final JSON object directly
-        const { data } = req.body;
+        const { data, template_id } = req.body;
 
         if (!data) return res.status(400).json({ error: "No data provided for generation" });
 
-        console.log("Generating Doc for:", data.patient_name);
+        let content;
+        if (template_id) {
+            const template = await promptService.getTemplate(template_id);
+            if (!template) return res.status(404).json({ error: "Template not found" });
 
-        // Load SOAP Template
-        const templatePath = path.resolve(__dirname, 'template_soap.docx');
-        if (!fs.existsSync(templatePath)) {
-            return res.status(500).json({ error: "SOAP Template file not found on server." });
+            // Fetch from Blob URL if it's a URL, otherwise fallback to local (for legacy/dev)
+            if (template.file_path && template.file_path.startsWith('http')) {
+                const response = await fetch(template.file_path);
+                if (!response.ok) throw new Error(`Failed to fetch template from ${template.file_path}`);
+                const arrayBuffer = await response.arrayBuffer();
+                content = Buffer.from(arrayBuffer);
+            } else {
+                if (!fs.existsSync(template.file_path)) {
+                    return res.status(500).json({ error: `Template file missing at ${template.file_path}` });
+                }
+                content = fs.readFileSync(template.file_path, 'binary');
+            }
+        } else {
+            const templatePath = path.resolve(__dirname, 'template_soap.docx');
+            if (!fs.existsSync(templatePath)) return res.status(500).json({ error: "Default SOAP Template missing." });
+            content = fs.readFileSync(templatePath, 'binary');
         }
 
-        const content = fs.readFileSync(templatePath, 'binary');
         const zip = new PizZip(content);
         const doc = new Docxtemplater(zip, {
             paragraphLoop: true,
             linebreaks: true,
+            nullGetter: () => "N/A"
         });
 
-        // Render the document
-        // Ensure nulls are handled
-        doc.render({
-            patient_name: data.patient_name || "Unknown",
-            subjective: data.subjective || "N/A",
-            objective: data.objective || "N/A",
-            assessment: data.assessment || "N/A",
-            plan: data.plan || "N/A",
-            medications: data.medications || "None",
-        });
+        doc.render(data);
 
         const buf = doc.getZip().generate({ type: "nodebuffer" });
 
-        // Send file
         res.set({
             'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'Content-Disposition': `attachment; filename=${(data.patient_name || 'soap_note').replace(/ /g, '_')}.docx`
+            'Content-Disposition': `attachment; filename=${(data.patient_name || 'Assessment').replace(/ /g, '_')}_${template_id || 'soap'}.docx`
         });
 
         res.send(buf);
@@ -480,7 +582,45 @@ app.post('/generate-document', async (req, res) => {
     }
 });
 
-// Serve static React files (Placeholder for now, effective after build)
+
+// ---------------------------------------------------------
+// Endpoint E: Dashboard Stats (Protected)
+// ---------------------------------------------------------
+// ---------------------------------------------------------
+// Endpoint E: Dashboard Stats (Protected)
+// ---------------------------------------------------------
+app.get('/api/dashboard', requireAuth, async (req, res) => {
+    console.log("Dashboard Endpoint Hit. User:", req.auth.userId);
+    try {
+        console.log("Fetching patients and transcripts...");
+        const [patients, transcripts] = await Promise.all([
+            promptService.getAllPatients(req.auth.userId),
+            promptService.getAllTranscripts(req.auth.userId)
+        ]);
+        console.log(`Fetched ${patients.length} patients, ${transcripts.length} transcripts`);
+
+        const recentActivity = transcripts.slice(0, 3).map(t => ({
+            id: t.id,
+            patient: t.patient_name,
+            date: t.date,
+            summary: t.content ? t.content.substring(0, 100) + '...' : 'No content',
+            type: 'session'
+        }));
+
+        // Calculate simplified stats
+        const stats = {
+            total_patients: patients.length,
+            total_sessions: transcripts.length
+        };
+
+        res.json({ stats, recentActivity });
+    } catch (error) {
+        console.error("Dashboard Error Detailed:", error);
+        res.status(500).json({ error: "Failed to load dashboard", details: error.message });
+    }
+});
+
+// Serve static React files
 app.use(express.static(path.join(__dirname, '../client/dist')));
 
 // Global Error Handler
@@ -489,9 +629,14 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: err.message || "Internal Server Error" });
 });
 
-// (Moved Transcript Routes up)
+// Start Server
 
 // Start Server
-app.listen(PORT, () => {
-    console.log(`Server & Client running on port ${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Server & Client running on port ${PORT}`);
+    });
+}
+
+module.exports = app;
+

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 
-const AudioUploader = ({ onTranscriptionComplete, isLoading }) => {
+const AudioUploader = ({ onTranscriptionComplete }) => {
     const [file, setFile] = useState(null);
     const [error, setError] = useState('');
+    const [isUploading, setIsUploading] = useState(false);
 
     const handleFileChange = (e) => {
         if (e.target.files) {
@@ -17,6 +18,8 @@ const AudioUploader = ({ onTranscriptionComplete, isLoading }) => {
             return;
         }
 
+        setIsUploading(true);
+        setError('');
         const formData = new FormData();
         formData.append('audio', file);
 
@@ -32,7 +35,6 @@ const AudioUploader = ({ onTranscriptionComplete, isLoading }) => {
                     const err = await response.json();
                     errorMessage = err.error || errorMessage;
                 } catch (e) {
-                    // If JSON parse fails, try text
                     const text = await response.text();
                     if (text) errorMessage = text;
                 }
@@ -41,11 +43,12 @@ const AudioUploader = ({ onTranscriptionComplete, isLoading }) => {
 
             const data = await response.json();
             onTranscriptionComplete(data.transcript);
-            setFile(null); // Reset file input
+            setFile(null);
         } catch (err) {
             console.error(err);
             setError(err.message);
-            // onTranscriptionComplete(null, err.message); // Don't crash parent on error
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -58,7 +61,7 @@ const AudioUploader = ({ onTranscriptionComplete, isLoading }) => {
                     type="file"
                     accept="audio/*"
                     onChange={handleFileChange}
-                    disabled={isLoading}
+                    disabled={isUploading}
                     className="block w-full text-sm text-gray-500
               file:mr-4 file:py-2 file:px-4
               file:rounded-full file:border-0
@@ -70,13 +73,21 @@ const AudioUploader = ({ onTranscriptionComplete, isLoading }) => {
                 {file && (
                     <button
                         onClick={handleUpload}
-                        disabled={isLoading}
+                        disabled={isUploading}
                         className={`py-2 px-4 rounded-md text-white font-medium transition-colors
-                    ${isLoading
-                                ? 'bg-gray-400 cursor-not-allowed'
-                                : 'bg-blue-600 hover:bg-blue-700'}`}
+                    ${isUploading
+                                ? 'bg-indigo-400 cursor-wait'
+                                : 'bg-indigo-600 hover:bg-indigo-700'}`}
                     >
-                        {isLoading ? 'Processing...' : 'Transcribe Audio'}
+                        {isUploading ? (
+                            <span className="flex items-center">
+                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Processing Audio...
+                            </span>
+                        ) : 'Transcribe Audio'}
                     </button>
                 )}
 

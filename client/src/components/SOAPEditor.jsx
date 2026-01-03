@@ -3,14 +3,18 @@ import React, { useState } from 'react';
 const SOAPEditor = ({ initialData, onDownload }) => {
     const [formData, setFormData] = useState(initialData);
 
+    React.useEffect(() => {
+        setFormData(initialData);
+    }, [initialData]);
+
     const handleChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
     return (
         <div className="p-6 bg-white rounded-lg shadow-md border border-gray-200 mt-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">3. Review & Edit SOAP Note</h2>
-            <p className="text-sm text-gray-500 mb-4">Review the AI-generated assessment. Edit as needed before generating the final document.</p>
+            <h2 className="text-xl font-semibold mb-4 text-slate-800">Review & Edit Assessment</h2>
+            <p className="text-sm text-slate-500 mb-4">Review the AI-generated output. Edit as needed before saving.</p>
 
             {/* Patient Name - Always specific if present, or treat as generic */}
             <div className="mb-4">

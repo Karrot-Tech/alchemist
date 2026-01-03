@@ -1,121 +1,255 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
 
-const dbPath = path.resolve(__dirname, '../prompts.db');
+const fs = require('fs');
+const { Pool } = require('pg');
+const path = require('path');
 
 class PromptService {
     constructor() {
-        this.db = new sqlite3.Database(dbPath, (err) => {
-            if (err) {
-                console.error('Could not connect to database', err);
-            } else {
-                console.log('Connected to prompts database');
-                this.init();
+        this.promptsDir = path.resolve(__dirname, '../prompts');
+        // Environment variable DATABASE_URL must be set
+        this.pool = new Pool({
+            connectionString: process.env.DATABASE_URL,
+            ssl: {
+                rejectUnauthorized: false
             }
+        });
+        this.init();
+    }
+
+    // Helper to get default prompt from file (read-only fallback)
+    loadSystemPromptFromFile(filename) {
+        return new Promise((resolve, reject) => {
+            fs.readFile(path.join(this.promptsDir, filename), 'utf8', (err, data) => {
+                if (err) resolve(""); // Fail gracefully
+                else resolve(data);
+            });
         });
     }
 
-    init() {
-        this.db.serialize(() => {
-            // Prompts Table
-            this.db.run(`CREATE TABLE IF NOT EXISTS prompts (
-                key TEXT PRIMARY KEY,
-                text TEXT NOT NULL
-            )`);
+    // Load from DB, fallback to code-bundled defaults or file if needed
+    async loadSystemPrompt(filename) {
+        const key = filename.replace('.md', ''); // Use filename as key mostly
+        const dbContent = await this.get(key, null);
+        if (dbContent) return dbContent;
 
-            // Templates Table
-            this.db.run(`CREATE TABLE IF NOT EXISTS templates (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                description TEXT,
-                file_path TEXT NOT NULL,
-                prompt_text TEXT NOT NULL,
-                schema_json TEXT NOT NULL
-            )`);
-        });
+        // Fallback to file reading if DB is empty for this key
+        return await this.loadSystemPromptFromFile(filename);
+    }
+
+    async saveSystemPrompt(filename, content) {
+        const key = filename.replace('.md', '');
+        // Only save to DB
+        await this.pool.query(
+            `INSERT INTO prompts (key, text) VALUES ($1, $2) 
+             ON CONFLICT (key) DO UPDATE SET text = $2`,
+            [key, content]
+        );
+    }
+
+    async init() {
+        try {
+            const client = await this.pool.connect();
+            try {
+                // Prompts Table
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS prompts (
+                        key TEXT PRIMARY KEY,
+                        text TEXT NOT NULL
+                    )
+                `);
+
+                // Templates Table
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS templates (
+                        id SERIAL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        description TEXT,
+                        file_path TEXT NOT NULL,
+                        prompt_text TEXT NOT NULL,
+                        schema_json TEXT NOT NULL,
+                        owner_id TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                `);
+
+                // Patients Table
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS patients (
+                        id SERIAL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        mrn TEXT,
+                        dob TEXT,
+                        doctor_id TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                `);
+
+                // Transcripts Table
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS transcripts (
+                        id SERIAL PRIMARY KEY,
+                        patient_name TEXT,
+                        date TEXT,
+                        content TEXT,
+                        notes TEXT,
+                        patient_id INTEGER REFERENCES patients(id),
+                        doctor_id TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                `);
+
+            } finally {
+                client.release();
+            }
+        } catch (err) {
+            console.error("Failed to initialize database schema:", err);
+            // Don't crash here, might be a connection issue that resolves later
+        }
     }
 
     // --- Prompts ---
-    get(key, defaultText) {
-        return new Promise((resolve, reject) => {
-            this.db.get("SELECT text FROM prompts WHERE key = ?", [key], (err, row) => {
-                if (err) return reject(err);
-                if (row) {
-                    resolve(row.text);
-                } else {
-                    this.db.run("INSERT INTO prompts (key, text) VALUES (?, ?)", [key, defaultText], (err) => {
-                        if (err) console.error("Error seeding prompt:", err);
-                    });
-                    resolve(defaultText);
-                }
-            });
-        });
+    async get(key, defaultText) {
+        try {
+            const result = await this.pool.query("SELECT text FROM prompts WHERE key = $1", [key]);
+            if (result.rows.length > 0) {
+                return result.rows[0].text;
+            } else if (defaultText !== null) {
+                // Only seed if we have a default text provided
+                try {
+                    await this.pool.query("INSERT INTO prompts (key, text) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING", [key, defaultText]);
+                } catch (e) { console.error("Error seeding prompt:", e); }
+                return defaultText;
+            }
+            return null;
+        } catch (err) {
+            console.error(`Error fetching prompt ${key}:`, err);
+            return defaultText; // Graceful fallback
+        }
     }
 
     // --- Templates ---
-    getAllTemplates() {
-        return new Promise((resolve, reject) => {
-            this.db.all("SELECT * FROM templates ORDER BY id DESC", [], (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
+    async getAllTemplates(userId) {
+        try {
+            const result = await this.pool.query(
+                "SELECT * FROM templates WHERE owner_id IS NULL OR owner_id = $1 ORDER BY id DESC",
+                [userId]
+            );
+            return result.rows;
+        } catch (err) {
+            throw err;
+        }
     }
 
-    getTemplate(id) {
-        return new Promise((resolve, reject) => {
-            this.db.get("SELECT * FROM templates WHERE id = ?", [id], (err, row) => {
-                if (err) reject(err);
-                else resolve(row);
-            });
-        });
+    async getTemplate(id) {
+        try {
+            const result = await this.pool.query("SELECT * FROM templates WHERE id = $1", [id]);
+            return result.rows[0];
+        } catch (err) {
+            throw err;
+        }
     }
 
-    saveTemplate(name, description, filePath, promptText, schemaJson) {
-        return new Promise((resolve, reject) => {
-            const stmt = this.db.prepare(`INSERT INTO templates (name, description, file_path, prompt_text, schema_json) VALUES (?, ?, ?, ?, ?)`);
-            stmt.run([name, description, filePath, promptText, JSON.stringify(schemaJson)], function (err) {
-                if (err) reject(err);
-                else resolve({ id: this.lastID });
-            });
-            stmt.finalize();
-        });
+    async createTemplate(name, description, filePath, promptText, schemaJson, userId) {
+        try {
+            const result = await this.pool.query(
+                `INSERT INTO templates(name, description, file_path, prompt_text, schema_json, owner_id) 
+                 VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
+                [name, description, filePath, promptText, JSON.stringify(schemaJson), userId]
+            );
+            return { id: result.rows[0].id };
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    async updateTemplate(id, name, description, promptText, schemaJson, userId) {
+        try {
+            const result = await this.pool.query(
+                `UPDATE templates SET name = $1, description = $2, prompt_text = $3, schema_json = $4 
+                 WHERE id = $5 AND owner_id = $6`,
+                [name, description, promptText, JSON.stringify(schemaJson), id, userId]
+            );
+            return { success: true, rowCount: result.rowCount };
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    // --- Patients ---
+    async getAllPatients(userId) {
+        try {
+            const result = await this.pool.query(
+                "SELECT * FROM patients WHERE doctor_id = $1 ORDER BY name ASC",
+                [userId]
+            );
+            return result.rows;
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    async createPatient(name, mrn, dob, userId) {
+        try {
+            const result = await this.pool.query(
+                `INSERT INTO patients(name, mrn, dob, doctor_id) VALUES($1, $2, $3, $4) RETURNING id`,
+                [name, mrn || '', dob || '', userId]
+            );
+            return { id: result.rows[0].id, name, mrn, dob };
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    async updatePatient(id, name, mrn, dob, userId) {
+        try {
+            const result = await this.pool.query(
+                `UPDATE patients SET name = $1, mrn = $2, dob = $3 WHERE id = $4 AND doctor_id = $5`,
+                [name, mrn || '', dob || '', id, userId]
+            );
+            if (result.rowCount === 0) throw new Error("Patient not found or unauthorized");
+            return { id, name, mrn, dob };
+        } catch (err) {
+            throw err;
+        }
     }
 
     // --- Transcripts ---
-    saveTranscript(patientName, date, content) {
-        return new Promise((resolve, reject) => {
-            this.db.run(
-                `INSERT INTO transcripts (patient_name, date, content) VALUES (?, ?, ?)`,
-                [patientName, date, content],
-                function (err) {
-                    if (err) {
-                        console.error("DB Insert Error:", err.message);
-                        reject(err);
-                    } else {
-                        resolve(this.lastID);
-                    }
-                }
+    async saveTranscript(patientName, date, content, notes, patientId, userId) {
+        try {
+            const result = await this.pool.query(
+                `INSERT INTO transcripts(patient_name, date, content, notes, patient_id, doctor_id) 
+                 VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
+                [patientName, date, content, notes || '', patientId || null, userId]
             );
-        });
+            return result.rows[0].id;
+        } catch (err) {
+            console.error("DB Insert Error:", err.message);
+            throw err;
+        }
     }
 
-    getAllTranscripts() {
-        return new Promise((resolve, reject) => {
-            this.db.all("SELECT id, patient_name, date, created_at FROM transcripts ORDER BY created_at DESC", [], (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
+    async getAllTranscripts(userId) {
+        try {
+            const result = await this.pool.query(
+                "SELECT * FROM transcripts WHERE doctor_id = $1 ORDER BY created_at DESC",
+                [userId]
+            );
+            return result.rows;
+        } catch (err) {
+            throw err;
+        }
     }
 
-    getTranscriptById(id) {
-        return new Promise((resolve, reject) => {
-            this.db.get("SELECT * FROM transcripts WHERE id = ?", [id], (err, row) => {
-                if (err) reject(err);
-                else resolve(row);
-            });
-        });
+    async getTranscriptById(id, userId) {
+        try {
+            const result = await this.pool.query(
+                "SELECT * FROM transcripts WHERE id = $1 AND doctor_id = $2",
+                [id, userId]
+            );
+            return result.rows[0];
+        } catch (err) {
+            throw err;
+        }
     }
 }
 
