@@ -370,6 +370,14 @@ app.post('/api/templates', requireAuth, upload.single('file'), async (req, res) 
             return res.status(400).json({ error: "Missing required fields" });
         }
 
+        if (!process.env.BLOB_READ_WRITE_TOKEN) {
+            console.error("CRITICAL: BLOB_READ_WRITE_TOKEN is missing in environment variables.");
+            return res.status(500).json({
+                error: "Configuration Error",
+                message: "Server is missing BLOB_READ_WRITE_TOKEN. Please add it to Vercel Environment Variables."
+            });
+        }
+
         // Upload to Vercel Blob
         // Parse schema_json string if needed
         let schemaObj = schema_json;

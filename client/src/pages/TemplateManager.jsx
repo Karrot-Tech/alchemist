@@ -138,7 +138,7 @@ function TemplateManager() {
                 fetchTemplates();
                 resetForm();
             } else {
-                toast.error("Save failed: " + data.error);
+                toast.error(`Save failed: ${data.error} ${data.message ? `(${data.message})` : ''}`);
             }
         } catch (err) {
             console.error(err);
