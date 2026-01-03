@@ -5,9 +5,11 @@ import { ArrowLeft, CheckCircle, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranscription } from '../context/TranscriptionContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 const NewSession = () => {
     const navigate = useNavigate();
+    const authFetch = useAuthFetch();
     const [searchParams] = useSearchParams();
     const draftId = searchParams.get('draftId');
 
@@ -44,7 +46,7 @@ const NewSession = () => {
     const [isCreatingPatient, setIsCreatingPatient] = useState(false);
 
     useEffect(() => {
-        fetch('/api/patients')
+        authFetch('/api/patients')
             .then(res => res.json())
             .then(data => setPatients(data || []))
             .catch(err => console.error(err));
@@ -56,7 +58,7 @@ const NewSession = () => {
 
         const loadDraft = async () => {
             try {
-                const res = await fetch(`/api/transcripts/${draftId}`);
+                const res = await authFetch(`/api/transcripts/${draftId}`);
                 const fullData = await res.json();
                 if (!fullData) throw new Error("Failed to load session");
 
@@ -110,7 +112,7 @@ const NewSession = () => {
             // Must create patient first to have an ID, or just store as string
             // For background job, we'll try to create it here quickly
             try {
-                const patRes = await fetch('/api/patients', {
+                const patRes = await authFetch('/api/patients', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name: patientName })
@@ -150,7 +152,7 @@ const NewSession = () => {
 
             // If creating a new patient on the fly
             if (!finalPatientId && patientName) {
-                const patRes = await fetch('/api/patients', {
+                const patRes = await authFetch('/api/patients', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name: patientName })
@@ -164,7 +166,7 @@ const NewSession = () => {
                 }
             }
 
-            const res = await fetch('/api/transcripts', {
+            const res = await authFetch('/api/transcripts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -3,9 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { Search, FileText, Calendar, User, ChevronRight, ArrowLeft, Headphones, ClipboardCheck, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 const TranscriptLibrary = () => {
     const navigate = useNavigate();
+    const authFetch = useAuthFetch();
     const [searchParams] = useSearchParams();
     const initialPatientId = searchParams.get('patientId');
 
@@ -22,8 +24,8 @@ const TranscriptLibrary = () => {
 
     useEffect(() => {
         Promise.all([
-            fetch('/api/patients').then(r => r.json()),
-            fetch('/api/transcripts?lean=true').then(r => r.json())
+            authFetch('/api/patients').then(r => r.json()),
+            authFetch('/api/transcripts?lean=true').then(r => r.json())
         ]).then(([pts, trs]) => {
             setPatients(pts || []);
             setTranscripts(trs || []);
@@ -52,7 +54,7 @@ const TranscriptLibrary = () => {
         try {
             toast.info("Preparing download...");
             // Fetch full transcript details to get the assessments array
-            const res = await fetch(`/api/transcripts/${transcript.id}`);
+            const res = await authFetch(`/api/transcripts/${transcript.id}`);
             const fullData = await res.json();
 
             if (!fullData || !fullData.assessments || fullData.assessments.length === 0) {
@@ -65,7 +67,7 @@ const TranscriptLibrary = () => {
             const finalData = latestAssessment.content;
             const templateId = latestAssessment.template_id;
 
-            const genRes = await fetch('/generate-document', {
+            const genRes = await authFetch('/generate-document', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

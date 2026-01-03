@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 import { Mic, Upload, Square, Play, Pause, FileAudio, AlertCircle, X, Download, Sparkles } from 'lucide-react';
 
 const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
+    const authFetch = useAuthFetch();
     const [mode, setMode] = useState('upload'); // 'upload' | 'record'
     const [file, setFile] = useState(null);
     const [error, setError] = useState('');
@@ -256,7 +258,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
 
         try {
             // Step 1: Upload to Gemini (via Server)
-            const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+            const uploadRes = await authFetch('/api/upload', { method: 'POST', body: formData });
             if (!uploadRes.ok) {
                 const text = await uploadRes.text();
                 throw new Error("Upload failed: " + text);
@@ -271,7 +273,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
                 // Wait 2s
                 await new Promise(resolve => setTimeout(resolve, 2000));
 
-                const statusRes = await fetch(`/api/status?name=${encodeURIComponent(gemini_file_name)}`);
+                const statusRes = await authFetch(`/api/status?name=${encodeURIComponent(gemini_file_name)}`);
                 if (!statusRes.ok) throw new Error("Failed to check processing status");
                 const statusData = await statusRes.json();
                 state = statusData.state;
@@ -281,7 +283,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
             }
 
             // Step 3: Generate Transcript
-            const genRes = await fetch('/api/generate', {
+            const genRes = await authFetch('/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

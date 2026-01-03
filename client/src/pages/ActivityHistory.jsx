@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Search, Clock, FileText, ChevronRight, Calendar, User, Headphones, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 const ActivityHistory = () => {
     const navigate = useNavigate();
+    const authFetch = useAuthFetch();
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true); // Initial load
     const [loadingMore, setLoadingMore] = useState(false); // Pagination load
@@ -44,7 +46,7 @@ const ActivityHistory = () => {
 
             if (search) params.append('search', search);
 
-            const res = await fetch(`/api/transcripts?${params.toString()}`);
+            const res = await authFetch(`/api/transcripts?${params.toString()}`);
             if (!res.ok) throw new Error("Failed to load");
 
             const data = await res.json();

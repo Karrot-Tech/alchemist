@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import SOAPEditor from '../components/SOAPEditor';
 import { ArrowLeft, Play, FileText, ChevronDown, Save, Sparkles, Download, RefreshCw } from 'lucide-react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 const AssessmentStudio = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const authFetch = useAuthFetch();
 
     // Internal state for fetching
     const [transcriptData, setTranscriptData] = useState(null);
@@ -28,7 +30,7 @@ const AssessmentStudio = () => {
     useEffect(() => {
         if (!id) return;
         setLoadingTranscript(true);
-        fetch(`/api/transcripts/${id}`)
+        authFetch(`/api/transcripts/${id}`)
             .then(res => res.json())
             .then(fullData => {
                 if (!fullData || !fullData.content) throw new Error("Failed to load transcript content");
@@ -67,7 +69,7 @@ const AssessmentStudio = () => {
     }, [id]);
 
     useEffect(() => {
-        fetch('/api/templates')
+        authFetch('/api/templates')
             .then(res => res.json())
             .then(data => setTemplates(data))
             .catch(err => toast.error("Failed to load templates."));
@@ -77,7 +79,7 @@ const AssessmentStudio = () => {
         if (!transcriptData) return;
         setIsAssessmentLoading(true);
         try {
-            const res = await fetch('/assess-soap', {
+            const res = await authFetch('/assess-soap', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -104,7 +106,7 @@ const AssessmentStudio = () => {
 
         setIsSaving(true);
         try {
-            const res = await fetch(`/api/transcripts/${transcriptData.id}/assessments`, {
+            const res = await authFetch(`/api/transcripts/${transcriptData.id}/assessments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -149,7 +151,7 @@ const AssessmentStudio = () => {
             toast.info("Saving and generating document...");
             await persistAssessment(finalData);
 
-            const res = await fetch('/generate-document', {
+            const res = await authFetch('/generate-document', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -181,8 +183,7 @@ const AssessmentStudio = () => {
         try {
             toast.info("Generating document...");
             // Skip persistAssessment
-
-            const res = await fetch('/generate-document', {
+            const res = await authFetch('/generate-document', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

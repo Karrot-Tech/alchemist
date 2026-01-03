@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Sparkles } from 'lucide-react';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 const DocGenerator = ({ transcript }) => {
+    const authFetch = useAuthFetch();
     const [notes, setNotes] = useState("Focus on the patient's reported symptoms regarding mobility and their current medication list."); // Default from spec
     const [isGenerating, setIsGenerating] = useState(false);
 
@@ -9,7 +11,7 @@ const DocGenerator = ({ transcript }) => {
         if (!transcript) return;
         setIsGenerating(true);
         try {
-            const response = await fetch('/generate-document', {
+            const response = await authFetch('/generate-document', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

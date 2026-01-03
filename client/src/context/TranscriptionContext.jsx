@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 import { toast } from 'sonner';
 
 const TranscriptionContext = createContext();
@@ -6,6 +7,7 @@ const TranscriptionContext = createContext();
 export const useTranscription = () => useContext(TranscriptionContext);
 
 export const TranscriptionProvider = ({ children }) => {
+    const authFetch = useAuthFetch();
     // jobs: { [id]: { status, date, patientName, fileName, error } }
     const [jobs, setJobs] = useState({});
 
@@ -40,7 +42,7 @@ export const TranscriptionProvider = ({ children }) => {
         try {
             // 1. Transcribe
             // 1. Upload to Gemini
-            const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+            const uploadRes = await authFetch('/api/upload', { method: 'POST', body: formData });
             if (!uploadRes.ok) {
                 const text = await uploadRes.text();
                 throw new Error("Upload failed: " + text);
@@ -54,7 +56,7 @@ export const TranscriptionProvider = ({ children }) => {
             while (state === "PROCESSING") {
                 await new Promise(resolve => setTimeout(resolve, 2000));
 
-                const statusRes = await fetch(`/api/status?name=${encodeURIComponent(gemini_file_name)}`);
+                const statusRes = await authFetch(`/api/status?name=${encodeURIComponent(gemini_file_name)}`);
                 if (!statusRes.ok) throw new Error("Failed to check processing status");
                 const statusData = await statusRes.json();
                 state = statusData.state;
@@ -64,7 +66,7 @@ export const TranscriptionProvider = ({ children }) => {
             }
 
             // 3. Generate Transcript
-            const genRes = await fetch('/api/generate', {
+            const genRes = await authFetch('/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -78,7 +80,7 @@ export const TranscriptionProvider = ({ children }) => {
             transData.audio_url = audio_url; // Merge back audio_url for saving
 
             // 2. Auto-Save to DB
-            const saveRes = await fetch('/api/transcripts', {
+            const saveRes = await authFetch('/api/transcripts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

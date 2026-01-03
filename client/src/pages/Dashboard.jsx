@@ -3,10 +3,12 @@ import { Mic, FolderOpen, Clock, Settings, UserPlus, FileText, ChevronRight, Act
 import { toast } from 'sonner';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 const Dashboard = () => {
     const { user } = useUser();
     const navigate = useNavigate();
+    const authFetch = useAuthFetch();
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState({
         stats: { total_patients: 0, total_sessions: 0, total_records: 0, total_templates: 0 },
@@ -14,7 +16,7 @@ const Dashboard = () => {
     });
 
     useEffect(() => {
-        fetch('/api/dashboard')
+        authFetch('/api/dashboard')
             .then(res => {
                 if (!res.ok) throw new Error("Failed to load dashboard data");
                 return res.json();

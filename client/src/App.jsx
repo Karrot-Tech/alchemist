@@ -35,39 +35,7 @@ function App() {
     setShowOnboarding(false);
   };
 
-  // Intercept fetch to add token
-  useEffect(() => {
-    const originalFetch = window.fetch;
-    window.fetch = async (...args) => {
-      const [resource] = args;
-      const url = typeof resource === 'string' ? resource : resource instanceof URL ? resource.toString() : '';
-
-      // PROFOUND FIX: Only intercept requests to our backend (/api).
-      // Otherwise we deadlock Clerk's own loading requests which uses fetch!
-      // Also strictly include other backend routes that are not prefixed with /api
-      const isBackendRoute = url.startsWith('/api') ||
-        url.startsWith('/transcribe') ||
-        url.startsWith('/assess-soap') ||
-        url.startsWith('/validate') ||
-        url.startsWith('/generate-document') ||
-        url.startsWith('http://localhost:3000');
-
-      if (isBackendRoute) {
-        try {
-          const token = await getToken();
-          if (token) {
-            const [_, config] = args; // re-destructure to get config
-            const newConfig = { ...config, headers: { ...config?.headers, Authorization: `Bearer ${token}` } };
-            return originalFetch(resource, newConfig);
-          }
-        } catch (err) {
-          console.error("Token fetch error", err);
-        }
-      }
-      return originalFetch(...args);
-    };
-    return () => { window.fetch = originalFetch; };
-  }, [getToken]);
+  // Global fetch interceptor removed in favor of useAuthFetch hook
 
   // Loading Timeout
   const [showTimeoutError, setShowTimeoutError] = useState(false);

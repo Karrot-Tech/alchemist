@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 const TranscriptViewer = ({ transcript, onTranscriptChange, onValidationReceived }) => {
+    const authFetch = useAuthFetch();
     const [isValidating, setIsValidating] = useState(false);
     const [validationResult, setValidationResult] = useState(null);
 
@@ -10,7 +12,7 @@ const TranscriptViewer = ({ transcript, onTranscriptChange, onValidationReceived
         if (!transcript) return;
         setIsValidating(true);
         try {
-            const response = await fetch('/validate', {
+            const response = await authFetch('/validate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ transcript }),

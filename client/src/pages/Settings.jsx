@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Bot, Cpu, Save, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 const Settings = () => {
+    const authFetch = useAuthFetch();
     const [agents, setAgents] = useState([]);
     const [selectedAgent, setSelectedAgent] = useState(null);
     const [promptContent, setPromptContent] = useState('');
@@ -10,7 +12,7 @@ const Settings = () => {
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        fetch('/api/system-prompts')
+        authFetch('/api/system-prompts')
             .then(res => res.json())
             .then(data => {
                 setAgents(data);
@@ -22,7 +24,7 @@ const Settings = () => {
 
     const loadAgent = async (id) => {
         try {
-            const res = await fetch(`/api/system-prompts/${id}`);
+            const res = await authFetch(`/api/system-prompts/${id}`);
             const data = await res.json();
             setSelectedAgent(data.id);
             setPromptContent(data.content);
@@ -35,7 +37,7 @@ const Settings = () => {
         if (!selectedAgent) return;
         setSaving(true);
         try {
-            const res = await fetch(`/api/system-prompts/${selectedAgent}`, {
+            const res = await authFetch(`/api/system-prompts/${selectedAgent}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content: promptContent })

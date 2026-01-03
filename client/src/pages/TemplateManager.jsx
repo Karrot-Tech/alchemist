@@ -2,8 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Upload, FileText, CheckCircle, Pencil, Trash2, Sparkles } from 'lucide-react';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 function TemplateManager() {
+    const authFetch = useAuthFetch();
     const [templates, setTemplates] = useState([]);
     const [loading, setLoading] = useState(true);
     const [analyzing, setAnalyzing] = useState(false);
@@ -25,7 +27,7 @@ function TemplateManager() {
     const fetchTemplates = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/templates');
+            const res = await authFetch('/api/templates');
             const data = await res.json();
             if (res.ok) {
                 setTemplates(data || []);
@@ -51,7 +53,7 @@ function TemplateManager() {
         formData.append('template', file);
 
         try {
-            const res = await fetch('/api/templates/analyze', { method: 'POST', body: formData });
+            const res = await authFetch('/api/templates/analyze', { method: 'POST', body: formData });
             const data = await res.json();
 
             if (res.ok) {
@@ -78,7 +80,7 @@ function TemplateManager() {
         if (!editingTemplate) return;
         setRefreshing(true);
         try {
-            const res = await fetch('/api/templates/refresh', {
+            const res = await authFetch('/api/templates/refresh', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ template_id: editingTemplate.id })
@@ -134,7 +136,7 @@ function TemplateManager() {
         }
 
         try {
-            const res = await fetch(url, {
+            const res = await authFetch(url, {
                 method: method,
                 headers: headers,
                 body: body
@@ -187,7 +189,7 @@ function TemplateManager() {
         if (!confirm("Are you sure you want to delete this clinical template? This cannot be undone.")) return;
 
         try {
-            const res = await fetch(`/api/templates/${editingTemplate.id}`, { method: 'DELETE' });
+            const res = await authFetch(`/api/templates/${editingTemplate.id}`, { method: 'DELETE' });
             if (res.ok) {
                 toast.success("Clinical Template deleted");
                 fetchTemplates();

@@ -2,15 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Search, FileText, Calendar, Edit, ChevronRight, Clipboard, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 const DraftsView = () => {
     const navigate = useNavigate();
+    const authFetch = useAuthFetch();
     const [transcripts, setTranscripts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
-        fetch('/api/transcripts')
+        authFetch('/api/transcripts')
             .then(r => r.json())
             .then(data => {
                 // Filter for drafts: No patient ID OR Name is "Draft Patient"

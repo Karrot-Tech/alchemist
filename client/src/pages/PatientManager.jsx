@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, UserPlus, Search, Pencil } from 'lucide-react';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 import { toast } from 'sonner';
 
 const PatientManager = () => {
+    const authFetch = useAuthFetch();
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -30,7 +32,7 @@ const PatientManager = () => {
 
     const fetchPatients = async () => {
         try {
-            const res = await fetch('/api/patients');
+            const res = await authFetch('/api/patients');
             const data = await res.json();
             setPatients(data || []);
             setLoading(false);
@@ -62,7 +64,7 @@ const PatientManager = () => {
             const url = editingPatient ? `/api/patients/${editingPatient.id}` : '/api/patients';
             const method = editingPatient ? 'PUT' : 'POST';
 
-            const res = await fetch(url, {
+            const res = await authFetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: newName, mrn: newMRN, dob: newDOB })
