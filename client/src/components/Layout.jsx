@@ -1,8 +1,12 @@
 import React from 'react';
 import { Toaster } from 'sonner';
+import { useUser, useClerk } from '@clerk/clerk-react';
 import { Home, FileText, Users, Settings, LogOut, ChevronRight, Menu, X, Cpu, PlusCircle } from 'lucide-react';
 
 const Layout = ({ children, activeTab, onNavigate }) => {
+    const { user } = useUser();
+    const { signOut } = useClerk();
+
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: Home },
         { id: 'library', label: 'Records', icon: FileText },
@@ -60,27 +64,27 @@ const Layout = ({ children, activeTab, onNavigate }) => {
                             );
                         })}
                     </div>
-
-                    <div className="mt-8 pt-6 border-t border-slate-100">
-                        <p className="px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Workspace</p>
-                        <button className="w-full flex items-center space-x-3 px-4 py-2 rounded-lg text-sm font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50">
-                            <Settings size={18} />
-                            <span>Settings</span>
-                        </button>
-                    </div>
                 </nav>
 
                 {/* User Footer */}
                 <div className="p-4 border-t border-slate-100">
-                    <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
-                        <div className="h-9 w-9 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 font-bold text-sm">
-                            DR
-                        </div>
+                    <div
+                        onClick={() => signOut()}
+                        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer group transition-colors"
+                        title="Sign Out"
+                    >
+                        {user?.imageUrl ? (
+                            <img src={user.imageUrl} alt="Profile" className="h-9 w-9 rounded-full object-cover border border-slate-200" />
+                        ) : (
+                            <div className="h-9 w-9 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-sm">
+                                {user?.firstName?.[0] || 'U'}
+                            </div>
+                        )}
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">Dr. Smith</p>
-                            <p className="text-xs text-slate-500 truncate">Pro Plan</p>
+                            <p className="text-sm font-medium text-slate-900 truncate">{user?.fullName || 'User'}</p>
+                            <p className="text-xs text-slate-500 truncate">{user?.primaryEmailAddress?.emailAddress || ''}</p>
                         </div>
-                        <LogOut size={16} className="text-slate-400" />
+                        <LogOut size={16} className="text-slate-400 group-hover:text-red-500 transition-colors" />
                     </div>
                 </div>
             </aside>
