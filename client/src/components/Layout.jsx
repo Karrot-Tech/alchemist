@@ -5,7 +5,7 @@ import { Home, FileText, Users, Settings, LogOut, ChevronRight, Menu, X, Clock, 
 
 const Layout = ({ children, activeTab, onNavigate }) => {
     const { user } = useUser();
-    const { signOut } = useClerk();
+    const { signOut, openUserProfile } = useClerk();
     const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
     const navItems = [
@@ -95,11 +95,11 @@ const Layout = ({ children, activeTab, onNavigate }) => {
                 </nav>
 
                 {/* User Footer */}
-                <div className="p-4 border-t border-slate-100">
+                <div className="p-4 border-t border-slate-100 space-y-2">
                     <div
-                        onClick={() => signOut()}
+                        onClick={() => openUserProfile()}
                         className="flex items-center space-x-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer group transition-colors"
-                        title="Sign Out"
+                        title="Manage Account"
                     >
                         {user?.imageUrl ? (
                             <img src={user.imageUrl} alt="Profile" className="h-9 w-9 rounded-full object-cover border border-slate-200" />
@@ -109,10 +109,21 @@ const Layout = ({ children, activeTab, onNavigate }) => {
                             </div>
                         )}
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">{user?.fullName || 'User'}</p>
-                            <p className="text-xs text-slate-500 truncate">{user?.primaryEmailAddress?.emailAddress || ''}</p>
+                            <p className="text-sm font-bold text-slate-900 truncate group-hover:text-indigo-600">{user?.fullName || 'User'}</p>
+                            <p className="text-[10px] text-slate-500 truncate uppercase tracking-tighter">Manage Account</p>
                         </div>
-                        <LogOut size={16} className="text-slate-400 group-hover:text-red-500 transition-colors" />
+                        <Settings size={14} className="text-slate-300 group-hover:text-indigo-400" />
+                    </div>
+
+                    <div
+                        onClick={() => signOut()}
+                        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 cursor-pointer group transition-colors"
+                        title="Sign Out"
+                    >
+                        <div className="w-9 flex justify-center">
+                            <LogOut size={16} />
+                        </div>
+                        <span className="text-sm font-medium">Sign Out</span>
                     </div>
                     {/* Copyright */}
                     <div className="mt-4 px-2 text-[10px] text-slate-300 font-medium text-center">

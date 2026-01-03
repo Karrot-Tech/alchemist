@@ -56,14 +56,14 @@ const Settings = () => {
                 <p className="text-slate-500 mt-1">Tune the AI personas that power the Alchemist platform.</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                 {/* Agent List */}
-                <div className="space-y-4">
+                <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
                     {loading ? <p>Loading brains...</p> : agents.map(agent => (
                         <button
                             key={agent.id}
                             onClick={() => loadAgent(agent.id)}
-                            className={`w-full text-left p-4 rounded-xl border transition-all flex items-start space-x-4
+                            className={`w-full h-full lg:h-auto text-left p-4 rounded-xl border transition-all flex items-start space-x-4
                                 ${selectedAgent === agent.id
                                     ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200'
                                     : 'bg-white border-slate-200 hover:border-indigo-300 hover:bg-indigo-50'}`}

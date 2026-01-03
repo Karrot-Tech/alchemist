@@ -147,6 +147,19 @@ function App() {
   };
 
 
+  const resumeById = async (id) => {
+    try {
+      const res = await fetch(`/api/transcripts/${id}`);
+      const fullData = await res.json();
+      if (!fullData) throw new Error("Failed to load session");
+
+      resumeSession(fullData);
+    } catch (err) {
+      console.error(err);
+      toast.error("Error loading session: " + err.message);
+    }
+  };
+
   const handleNavigate = (tab, params = null) => {
     setActiveTab(tab);
     setAppMode(tab);
@@ -155,6 +168,9 @@ function App() {
     }
     if (tab === 'assessment' && params?.transcriptId) {
       startAssessment({ id: params.transcriptId });
+    }
+    if (tab === 'ingest' && params?.transcriptId) {
+      resumeById(params.transcriptId);
     }
   };
 

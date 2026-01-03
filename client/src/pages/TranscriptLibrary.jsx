@@ -185,19 +185,19 @@ const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
                                             className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group"
                                             onClick={() => onSelectTranscript(t)}
                                         >
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="flex items-center space-x-2 text-indigo-600 font-medium">
+                                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
+                                                <div className="flex items-center space-x-2 text-indigo-600 font-medium shrink-0">
                                                     <Calendar size={16} />
-                                                    <span>{formatDate(t.created_at || t.date)}</span>
+                                                    <span className="text-sm md:text-base">{formatDate(t.created_at || t.date)}</span>
                                                 </div>
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex flex-wrap items-center gap-2">
                                                     {t.audio_url && (
-                                                        <span className="text-[10px] font-bold uppercase py-1 px-2 bg-indigo-50 text-indigo-600 rounded-md flex items-center gap-1">
+                                                        <span className="text-[10px] font-bold uppercase py-1 px-2 bg-indigo-50 text-indigo-600 rounded-md flex items-center gap-1 whitespace-nowrap border border-transparent">
                                                             <Headphones size={10} /> Audio
                                                         </span>
                                                     )}
                                                     {t.assessment_count > 0 && (
-                                                        <span className="text-[10px] font-bold uppercase py-1 px-2 bg-emerald-50 text-emerald-600 rounded-md flex items-center gap-1">
+                                                        <span className="text-[10px] font-bold uppercase py-1 px-2 bg-emerald-50 text-emerald-600 rounded-md flex items-center gap-1 whitespace-nowrap border border-transparent">
                                                             <ClipboardCheck size={10} /> {t.assessment_count > 1 ? `${t.assessment_count} Reports` : 'Report'}
                                                         </span>
                                                     )}
@@ -207,12 +207,12 @@ const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
                                                                 e.stopPropagation();
                                                                 handleDownload(t);
                                                             }}
-                                                            className="text-[10px] font-bold uppercase py-1 px-2 bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-md flex items-center gap-1 transition-colors border border-slate-200"
+                                                            className="text-[10px] font-bold uppercase py-1 px-2 bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-md flex items-center gap-1 transition-colors border border-slate-200 whitespace-nowrap"
                                                         >
                                                             <Download size={10} /> Save
                                                         </button>
                                                     )}
-                                                    <span className="text-xs font-bold px-2 py-1 bg-slate-100 rounded-md text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                                    <span className="text-xs font-bold px-2 py-1 bg-slate-100 rounded-md text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors whitespace-nowrap border border-transparent">
                                                         View &rarr;
                                                     </span>
                                                 </div>
@@ -222,9 +222,9 @@ const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
                                             </p>
 
                                             {t.audio_url && (
-                                                <div className="mb-3 p-2 bg-slate-50 rounded-lg border border-slate-100 flex items-center gap-3" onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
-                                                    <audio controls className="h-8 flex-1">
-                                                        <source src={t.audio_url} />
+                                                <div className="mb-3 p-2 bg-slate-50 rounded-lg border border-slate-100 flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                                                    <audio controls preload="metadata" className="h-8 flex-1">
+                                                        <source src={t.audio_url} type="audio/mpeg" />
                                                         Your browser does not support the audio element.
                                                     </audio>
                                                 </div>

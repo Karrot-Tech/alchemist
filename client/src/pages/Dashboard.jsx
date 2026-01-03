@@ -136,7 +136,14 @@ const Dashboard = ({ onNavigate }) => {
                                         <div
                                             key={activity.id}
                                             className="relative flex gap-6 group cursor-pointer"
-                                            onClick={() => onNavigate('assessment', { transcriptId: activity.id })}
+                                            onClick={() => {
+                                                const isUnassigned = !activity.patient || activity.patient === 'Draft Patient';
+                                                if (isUnassigned) {
+                                                    onNavigate('ingest', { transcriptId: activity.id });
+                                                } else {
+                                                    onNavigate('assessment', { transcriptId: activity.id });
+                                                }
+                                            }}
                                         >
                                             {/* dot */}
                                             <div className="relative z-10 w-10 h-10 rounded-full bg-white border-2 border-slate-100 flex items-center justify-center text-slate-400 group-hover:border-indigo-500 group-hover:text-indigo-600 transition-all shadow-sm group-hover:shadow-indigo-100 group-hover:scale-110">

@@ -65,10 +65,24 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
         }
     };
 
+    const getSupportedMimeType = () => {
+        const types = [
+            'audio/mp4',      // Best for iOS/Safari
+            'audio/aac',      // Good for iOS/Safari
+            'audio/webm',     // Best for Chrome/Firefox
+            'audio/ogg',
+            'audio/wav'
+        ];
+        return types.find(type => MediaRecorder.isTypeSupported(type)) || '';
+    };
+
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorderRef.current = new MediaRecorder(stream);
+            const mimeType = getSupportedMimeType();
+            const options = mimeType ? { mimeType } : {};
+
+            mediaRecorderRef.current = new MediaRecorder(stream, options);
             chunksRef.current = [];
 
             // Audio Visualizer Setup
@@ -102,9 +116,13 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
             };
 
             mediaRecorderRef.current.onstop = () => {
-                const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+                const recordedMimeType = mediaRecorderRef.current.mimeType || 'audio/webm';
+                const extension = recordedMimeType.includes('mp4') ? 'mp4' :
+                    recordedMimeType.includes('aac') ? 'm4a' : 'webm';
+
+                const blob = new Blob(chunksRef.current, { type: recordedMimeType });
                 setAudioBlob(blob);
-                const recordedFile = new File([blob], "recording.webm", { type: 'audio/webm' });
+                const recordedFile = new File([blob], `recording.${extension}`, { type: recordedMimeType });
                 setFile(recordedFile);
 
                 stream.getTracks().forEach(track => track.stop());
@@ -173,10 +191,12 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
 
     const handleDownloadRecording = () => {
         if (!audioBlob) return;
+        const extension = audioBlob.type.includes('mp4') ? 'mp4' :
+            audioBlob.type.includes('aac') ? 'm4a' : 'webm';
         const url = URL.createObjectURL(audioBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `recording_${new Date().toISOString().split('T')[0]}.webm`;
+        a.download = `recording_${new Date().toISOString().split('T')[0]}.${extension}`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -223,7 +243,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
                 const text = await uploadRes.text();
                 throw new Error("Upload failed: " + text);
             }
-            const { gemini_file_name, gemini_file_uri, audioUrl } = await uploadRes.json();
+            const { gemini_file_name, gemini_file_uri, audio_url } = await uploadRes.json();
 
             // Step 2: Poll for Processing Status
             let state = "PROCESSING";
@@ -254,7 +274,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
 
             onTranscriptionComplete({
                 transcript: genData.transcript,
-                audioUrl: audioUrl
+                audioUrl: audio_url
             });
             setFile(null);
             setAudioBlob(null);
