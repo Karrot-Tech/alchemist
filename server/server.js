@@ -22,9 +22,9 @@ const app = express();
 // --- System Agents (Brains) Management ---
 const SYSTEM_AGENTS = {
     'transcriber': { name: 'Transcriber Bot', file: 'transcribe_audio.md', desc: 'Converts raw audio to text.' },
+    'auditor': { name: 'Quality Auditor', file: 'validate_transcript.md', desc: 'Checks transcript quality and completeness.' },
     'analyst': { name: 'Clinical Analyst', file: 'assess_soap.md', desc: 'Generates clinical assessments (SOAP).' },
-    'architect': { name: 'Template Architect', file: 'analyze_template.md', desc: 'Analyzes DOCX templates for structure.' },
-    'auditor': { name: 'Quality Auditor', file: 'validate_transcript.md', desc: 'Checks transcript quality and completeness.' }
+    'architect': { name: 'Template Architect', file: 'analyze_template.md', desc: 'Analyzes DOCX templates for structure.' }
 };
 
 app.get('/api/system-prompts', (req, res) => {
