@@ -2,6 +2,26 @@
     "outputDirectory": "client/dist",
     "rewrites": [
         {
+            "source": "/ping",
+            "destination": "/api/index.js"
+        },
+        {
+            "source": "/transcribe",
+            "destination": "/api/index.js"
+        },
+        {
+            "source": "/validate",
+            "destination": "/api/index.js"
+        },
+        {
+            "source": "/assess-soap",
+            "destination": "/api/index.js"
+        },
+        {
+            "source": "/generate-document",
+            "destination": "/api/index.js"
+        },
+        {
             "source": "/api/(.*)",
             "destination": "/api/index.js"
         },
