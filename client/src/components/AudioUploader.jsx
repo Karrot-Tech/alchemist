@@ -264,8 +264,8 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
                 {mode === 'upload' ? (
                     <div
                         className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${isDragging
-                                ? 'border-indigo-500 bg-indigo-50/50 scale-[1.01]'
-                                : 'border-slate-200 hover:bg-slate-50'
+                            ? 'border-indigo-500 bg-indigo-50/50 scale-[1.01]'
+                            : 'border-slate-200 hover:bg-slate-50'
                             }`}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
@@ -273,7 +273,7 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
                     >
                         <input
                             type="file"
-                            accept="audio/*"
+                            accept=".mp3,audio/mpeg,.m4a,audio/x-m4a,.wav,audio/wav,.webm,audio/webm,audio/*"
                             onChange={handleFileChange}
                             disabled={isProcessing}
                             id="file-upload"
