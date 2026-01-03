@@ -42,10 +42,6 @@ const AssessmentStudio = ({
     }, []);
 
     const runAssessment = async () => {
-        if (!selectedTemplateId) {
-            toast.warning("Please select a clinical template.");
-            return;
-        }
         setIsAssessmentLoading(true);
         try {
             const res = await fetch('/assess-soap', {
@@ -205,7 +201,7 @@ const AssessmentStudio = ({
                         {!soapData && (
                             <button
                                 onClick={runAssessment}
-                                disabled={isAssessmentLoading || !selectedTemplateId}
+                                disabled={isAssessmentLoading}
                                 className="p-2 bg-indigo-600 text-white rounded-xl shadow-md disabled:opacity-50"
                             >
                                 {isAssessmentLoading ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Sparkles size={18} />}
@@ -224,7 +220,7 @@ const AssessmentStudio = ({
                             onChange={e => setSelectedTemplateId(e.target.value)}
                             className="appearance-none pl-9 pr-8 py-2 md:py-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl text-xs md:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all w-full lg:min-w-[240px]"
                         >
-                            <option value="" disabled>Select Clinical Template...</option>
+                            <option value="">Quick SOAP (No Template)</option>
                             {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 md:px-3 text-slate-500">
@@ -235,7 +231,7 @@ const AssessmentStudio = ({
                     <div className="flex items-center gap-2">
                         <button
                             onClick={runAssessment}
-                            disabled={isAssessmentLoading || !selectedTemplateId}
+                            disabled={isAssessmentLoading}
                             className="hidden lg:flex px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-xl shadow-md shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 items-center space-x-2"
                         >
                             {isAssessmentLoading ? (
