@@ -23,7 +23,7 @@ const TranscriptLibrary = () => {
     useEffect(() => {
         Promise.all([
             fetch('/api/patients').then(r => r.json()),
-            fetch('/api/transcripts').then(r => r.json())
+            fetch('/api/transcripts?lean=true').then(r => r.json())
         ]).then(([pts, trs]) => {
             setPatients(pts || []);
             setTranscripts(trs || []);

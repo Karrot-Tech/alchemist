@@ -116,6 +116,10 @@ class PromptService {
                     )
                 `);
 
+                // Indices for Performance (Scalability Update)
+                await client.query(`CREATE INDEX IF NOT EXISTS idx_transcripts_doctor_id ON transcripts(doctor_id)`);
+                await client.query(`CREATE INDEX IF NOT EXISTS idx_transcripts_created_at ON transcripts(created_at DESC)`);
+                await client.query(`CREATE INDEX IF NOT EXISTS idx_patients_doctor_id ON patients(doctor_id)`);
             } finally {
                 client.release();
             }
@@ -258,19 +262,62 @@ class PromptService {
         }
     }
 
-    async getAllTranscripts(userId) {
+    async getAllTranscripts(userId, options = {}) {
         try {
-            const result = await this.pool.query(
-                `SELECT t.*, 
-                 (SELECT COUNT(*) FROM assessments a WHERE a.transcript_id = t.id) as assessment_count
-                 FROM transcripts t 
-                 WHERE t.doctor_id = $1 
-                 ORDER BY t.created_at DESC`,
-                [userId]
-            );
+            const { limit, offset, search, lean } = options;
+            const params = [userId];
+            let query = `
+                SELECT t.id, t.patient_name, t.date, t.created_at, t.patient_id, t.audio_url,
+                ${lean ? "LEFT(t.content, 100) as content, LEFT(t.notes, 100) as notes" : "t.content, t.notes"},
+                (SELECT COUNT(*) FROM assessments a WHERE a.transcript_id = t.id) as assessment_count
+                FROM transcripts t 
+                WHERE t.doctor_id = $1 
+            `;
+
+            if (search) {
+                query += ` AND (t.patient_name ILIKE $${params.length + 1} OR t.content ILIKE $${params.length + 1})`;
+                params.push(`%${search}%`);
+            }
+
+            query += ` ORDER BY t.created_at DESC`;
+
+            if (limit) {
+                query += ` LIMIT $${params.length + 1}`;
+                params.push(limit);
+            }
+
+            if (offset) {
+                query += ` OFFSET $${params.length + 1}`;
+                params.push(offset);
+            }
+
+            const result = await this.pool.query(query, params);
             return result.rows;
         } catch (err) {
             throw err;
+        }
+    }
+
+    async getDashboardStats(userId) {
+        try {
+            // Optimized counting queries
+            const patientsQuery = this.pool.query("SELECT COUNT(*) FROM patients WHERE doctor_id = $1", [userId]);
+            const sessionsQuery = this.pool.query("SELECT COUNT(*) FROM transcripts WHERE doctor_id = $1", [userId]);
+            const draftsQuery = this.pool.query("SELECT COUNT(*) FROM transcripts WHERE doctor_id = $1 AND (patient_id IS NULL OR patient_name = 'Draft Patient')", [userId]);
+            const templatesQuery = this.pool.query("SELECT COUNT(*) FROM templates WHERE owner_id = $1 OR owner_id IS NULL", [userId]);
+
+            const [pRes, sRes, dRes, tRes] = await Promise.all([patientsQuery, sessionsQuery, draftsQuery, templatesQuery]);
+
+            return {
+                total_patients: parseInt(pRes.rows[0].count),
+                total_sessions: parseInt(sRes.rows[0].count),
+                total_drafts: parseInt(dRes.rows[0].count),
+                total_templates: parseInt(tRes.rows[0].count),
+                total_records: parseInt(sRes.rows[0].count) - parseInt(dRes.rows[0].count)
+            };
+        } catch (err) {
+            console.error("Stats Error:", err);
+            throw err; // Caller handles default values
         }
     }
 

@@ -148,9 +148,19 @@ app.post('/api/transcripts', requireAuth, async (req, res) => {
 
 app.get('/api/transcripts', requireAuth, async (req, res) => {
     try {
-        const list = await promptService.getAllTranscripts(req.auth.userId);
+        const { limit, offset, search, lean } = req.query;
+
+        const options = {
+            limit: limit ? parseInt(limit) : undefined,
+            offset: offset ? parseInt(offset) : undefined,
+            search: search || undefined,
+            lean: lean === 'true'
+        };
+
+        const list = await promptService.getAllTranscripts(req.auth.userId, options);
         res.json(list);
     } catch (error) {
+        console.error("Fetch Transcripts Error:", error);
         res.status(500).json({ error: "Failed to fetch transcripts" });
     }
 });
@@ -821,33 +831,24 @@ app.post('/generate-document', requireAuth, async (req, res) => {
 app.get('/api/dashboard', requireAuth, async (req, res) => {
     console.log("Dashboard Endpoint Hit. User:", req.auth.userId);
     try {
-        console.log("Fetching patients and transcripts...");
-        const [patients, transcripts, templates] = await Promise.all([
-            promptService.getAllPatients(req.auth.userId),
-            promptService.getAllTranscripts(req.auth.userId),
-            promptService.getAllTemplates(req.auth.userId)
-        ]);
-        console.log(`Fetched ${patients.length} patients, ${transcripts.length} transcripts, ${templates.length} templates`);
+        // 1. Get Optimized Stats
+        const stats = await promptService.getDashboardStats(req.auth.userId);
 
-        const recentActivity = transcripts.slice(0, 5).map(t => ({
+        // 2. Get Lean Recent Activity (Limit 5, Lean Content)
+        const recentTranscripts = await promptService.getAllTranscripts(req.auth.userId, {
+            limit: 5,
+            lean: true
+        });
+
+        const recentActivity = recentTranscripts.map(t => ({
             id: t.id,
             patient: t.patient_name,
             date: t.date,
             created_at: t.created_at,
-            summary: t.content ? t.content.substring(0, 100) + '...' : 'No content',
-            type: 'session'
+            summary: t.content ? (t.content.length > 100 ? t.content.substring(0, 100) + '...' : t.content) : 'No content',
+            type: 'session',
+            assessment_count: t.assessment_count
         }));
-
-        // Calculate simplified stats
-        const drafts = transcripts.filter(t => !t.patient_id || t.patient_name === 'Draft Patient');
-
-        const stats = {
-            total_patients: patients.length,
-            total_drafts: drafts.length,
-            total_records: transcripts.length - drafts.length,
-            total_templates: templates.length,
-            total_sessions: transcripts.length
-        };
 
         res.json({ stats, recentActivity });
     } catch (error) {

@@ -6,45 +6,74 @@ import { useNavigate } from 'react-router-dom';
 const ActivityHistory = () => {
     const navigate = useNavigate();
     const [sessions, setSessions] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true); // Initial load
+    const [loadingMore, setLoadingMore] = useState(false); // Pagination load
     const [searchTerm, setSearchTerm] = useState('');
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const LIMIT = 20;
+
+    // Debounce search term
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchTerm);
+        }, 500); // 500ms debounce
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
     useEffect(() => {
-        fetch('/api/transcripts')
-            .then(res => res.json())
-            .then(data => {
-                // Sort by date newest first
-                const sorted = (data || []).sort((a, b) => new Date(b.date) - new Date(a.date));
-                setSessions(sorted);
-                setLoading(false);
-            })
-            .catch(err => {
-                console.error(err);
-                toast.error("Failed to load activity history");
-                setLoading(false);
-            });
-    }, []);
+        // Reset list when search changes
+        setPage(1);
+        setSessions([]);
+        setHasMore(true);
+        fetchSessions(1, debouncedSearch, true);
+    }, [debouncedSearch]);
 
-    const filtered = sessions.filter(s =>
-        (s.patient_name && s.patient_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (s.content && s.content.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const fetchSessions = async (pageNum, search, isReset = false) => {
+        if (isReset) setLoading(true);
+        else setLoadingMore(true);
+
+        try {
+            const params = new URLSearchParams({
+                page: pageNum,
+                limit: LIMIT,
+                offset: (pageNum - 1) * LIMIT,
+                lean: 'true' // Don't need full heavy content
+            });
+
+            if (search) params.append('search', search);
+
+            const res = await fetch(`/api/transcripts?${params.toString()}`);
+            if (!res.ok) throw new Error("Failed to load");
+
+            const data = await res.json();
+
+            if (data.length < LIMIT) {
+                setHasMore(false);
+            }
+
+            setSessions(prev => isReset ? data : [...prev, ...data]);
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to load history");
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    };
+
+    const handleLoadMore = () => {
+        const nextPage = page + 1;
+        setPage(nextPage);
+        fetchSessions(nextPage, debouncedSearch);
+    };
 
     const formatDate = (dateString) => {
         if (!dateString) return '-';
         const d = new Date(dateString);
         if (isNaN(d.getTime())) return '-';
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const year = d.getFullYear();
-
-        // Add time
-        const hours = d.getHours();
-        const minutes = String(d.getMinutes()).padStart(2, '0');
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        const displayHours = hours % 12 || 12;
-
-        return `${month}/${day}/${year} • ${displayHours}:${minutes} ${ampm}`;
+        return d.toLocaleDateString() + ' • ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
     return (
@@ -70,14 +99,14 @@ const ActivityHistory = () => {
                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500 mx-auto mb-4"></div>
                     <p className="text-slate-400">Loading your history...</p>
                 </div>
-            ) : filtered.length === 0 ? (
+            ) : sessions.length === 0 ? (
                 <div className="p-20 text-center bg-white rounded-2xl border border-dashed border-slate-300">
                     <Clock size={40} className="mx-auto text-slate-200 mb-4" />
                     <p className="text-slate-500 italic">No activities found matching your search.</p>
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {filtered.map(session => {
+                    {sessions.map(session => {
                         const isUnassigned = !session.patient_name || session.patient_name === 'Draft Patient';
 
                         return (
@@ -136,6 +165,18 @@ const ActivityHistory = () => {
                             </div>
                         );
                     })}
+
+                    {hasMore && (
+                        <div className="pt-4 flex justify-center">
+                            <button
+                                onClick={handleLoadMore}
+                                disabled={loadingMore}
+                                className="px-6 py-2 bg-white border border-slate-200 text-slate-600 rounded-full shadow-sm hover:bg-slate-50 disabled:opacity-50 text-sm font-medium transition-all"
+                            >
+                                {loadingMore ? "Loading..." : "Load More Activity"}
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
