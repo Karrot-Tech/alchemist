@@ -90,6 +90,7 @@ function TemplateManager() {
 
     const handleSave = async () => {
         if (!name || !promptText || !schemaJson) return toast.error("Missing required fields");
+        if (!editingTemplate && !file) return toast.error("Please select a template file");
 
         try {
             JSON.parse(schemaJson); // Validate JSON
@@ -97,22 +98,38 @@ function TemplateManager() {
             return toast.error("Invalid JSON Schema format");
         }
 
-        const url = editingTemplate ? `/ api / templates / ${editingTemplate.id} ` : '/api/templates';
+        const url = editingTemplate ? `/api/templates/${editingTemplate.id}` : '/api/templates'; // Fixed URL spacing
         const method = editingTemplate ? 'PUT' : 'POST';
 
-        const payload = {
-            name,
-            description,
-            prompt_text: promptText,
-            schema_json: schemaJson,
-            file_path: filePath
-        };
+        let body, headers;
+
+        if (editingTemplate) {
+            // Update: JSON is fine
+            headers = { 'Content-Type': 'application/json' };
+            body = JSON.stringify({
+                name,
+                description,
+                prompt_text: promptText,
+                schema_json: schemaJson
+            });
+        } else {
+            // Create: Must be FormData for file upload
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('name', name);
+            formData.append('description', description);
+            formData.append('prompt_text', promptText);
+            formData.append('schema_json', schemaJson);
+
+            body = formData;
+            // No Content-Type header for FormData; browser sets it with boundary
+        }
 
         try {
             const res = await fetch(url, {
                 method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                headers: headers,
+                body: body
             });
             const data = await res.json();
 
