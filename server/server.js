@@ -240,12 +240,15 @@ app.post('/api/upload', requireAuth, upload.single('audio'), async (req, res) =>
         let mimeType = req.file.mimetype;
 
         // Normalize MIME Types for Gemini
-        // audio/mp4 (standard on iOS) is often better handled as audio/aac.
-        if (mimeType === 'audio/mp4' || mimeType === 'audio/x-m4a' || req.file.originalname.endsWith('.mp4') || req.file.originalname.endsWith('.m4a')) {
-            mimeType = "audio/aac";
-        } else if ((mimeType === 'application/octet-stream' || mimeType === 'audio/mpeg') && req.file.originalname.endsWith('.mp3')) {
+        // We handle specific common mismatches, but avoid forcing audio/aac if not sure.
+        if (mimeType === 'application/octet-stream' && req.file.originalname.endsWith('.mp3')) {
             mimeType = "audio/mp3";
+        } else if (mimeType === 'application/octet-stream' && (req.file.originalname.endsWith('.mp4') || req.file.originalname.endsWith('.m4a'))) {
+            mimeType = "audio/mp4";
         }
+
+        // If it's audio/mp4 or audio/x-m4a, keep it as is or use audio/mp4
+        if (mimeType === 'audio/x-m4a') mimeType = "audio/mp4";
 
         mimeType = mimeType || "audio/mp3";
 
@@ -312,13 +315,9 @@ app.post('/api/generate', requireAuth, async (req, res) => {
         const { file_uri, mime_type } = req.body;
         if (!file_uri) return res.status(400).json({ error: "No file URI provided" });
 
-        // Normalize MIME type to match the upload logic
+        // Use the mime_type passed from client (which should match what we uploaded)
         let normalizedMime = mime_type;
-        if (normalizedMime === 'audio/mp4' || normalizedMime === 'audio/x-m4a' || normalizedMime === 'audio/aac') {
-            normalizedMime = "audio/aac";
-        } else if (normalizedMime === 'audio/mp3' || normalizedMime === 'audio/mpeg') {
-            normalizedMime = "audio/mp3";
-        }
+        if (normalizedMime === 'audio/x-m4a') normalizedMime = "audio/mp4";
         normalizedMime = normalizedMime || "audio/mp3";
 
         console.log(`[Async] Generating transcript for URI: ${file_uri}, MIME: ${normalizedMime}`);
