@@ -371,11 +371,6 @@ app.post('/api/templates', requireAuth, upload.single('file'), async (req, res) 
         }
 
         // Upload to Vercel Blob
-        const blob = await put(req.file.originalname, req.file.buffer, {
-            access: 'public',
-            token: process.env.BLOB_READ_WRITE_TOKEN
-        });
-
         // Parse schema_json string if needed
         let schemaObj = schema_json;
         if (typeof schema_json === 'string') {
@@ -384,11 +379,26 @@ app.post('/api/templates', requireAuth, upload.single('file'), async (req, res) 
             }
         }
 
+        console.log("[DEBUG] Uploading file to Vercel Blob...");
+        const blob = await put(req.file.originalname, req.file.buffer, {
+            access: 'public',
+            token: process.env.BLOB_READ_WRITE_TOKEN
+        });
+        console.log("[DEBUG] Blob uploaded successfully:", blob.url);
+
+        console.log("[DEBUG] Saving template to database...");
         const id = await promptService.createTemplate(name, description, blob.url, prompt_text, schemaObj, req.auth.userId);
+        console.log("[DEBUG] Template saved to DB with ID:", id);
+
         res.json({ success: true, id });
     } catch (err) {
-        console.error("Create Template Error:", err);
-        res.status(500).json({ error: "Failed to create template" });
+        console.error("Create Template CRITICAL FAILURE:", err);
+        // Return actual error context to help debugging
+        res.status(500).json({
+            error: "Template Creation Failed",
+            message: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 
