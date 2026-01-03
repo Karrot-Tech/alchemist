@@ -31,11 +31,11 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
 
             if (!response.ok) {
                 let errorMessage = 'Upload failed';
+                const text = await response.text();
                 try {
-                    const err = await response.json();
+                    const err = JSON.parse(text);
                     errorMessage = err.error || errorMessage;
                 } catch (e) {
-                    const text = await response.text();
                     if (text) errorMessage = text;
                 }
                 throw new Error(errorMessage);
