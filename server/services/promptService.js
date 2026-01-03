@@ -175,6 +175,18 @@ class PromptService {
         }
     }
 
+    async deleteTemplate(id, userId) {
+        try {
+            const result = await this.pool.query(
+                `DELETE FROM templates WHERE id = $1 AND owner_id = $2`,
+                [id, userId]
+            );
+            return { success: true, rowCount: result.rowCount };
+        } catch (err) {
+            throw err;
+        }
+    }
+
     // --- Patients ---
     async getAllPatients(userId) {
         try {

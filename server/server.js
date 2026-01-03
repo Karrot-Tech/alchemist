@@ -425,7 +425,19 @@ app.put('/api/templates/:id', requireAuth, async (req, res) => {
     }
 });
 
-// POST /api/templates/analyze (Protected)
+app.delete('/api/templates/:id', requireAuth, async (req, res) => {
+    try {
+        const result = await promptService.deleteTemplate(req.params.id, req.auth.userId);
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Template not found or unauthorized" });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error("Delete Template Error:", err);
+        res.status(500).json({ error: "Failed to delete template" });
+    }
+});
+
 // POST /api/templates/analyze (Protected)
 app.post('/api/templates/analyze', requireAuth, upload.single('template'), async (req, res) => {
     try {

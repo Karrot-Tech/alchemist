@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Upload, FileText, CheckCircle, Pencil } from 'lucide-react'; // Assuming lucide-react for the Pencil icon
+import { Upload, FileText, CheckCircle, Pencil, Trash2 } from 'lucide-react'; // Added Trash2
 
 function TemplateManager() {
     const [templates, setTemplates] = useState([]);
@@ -172,7 +172,28 @@ function TemplateManager() {
         setEditingTemplate(null);
         setName(''); setDescription(''); setPromptText(''); setSchemaJson('{}');
         setFile(null); setFilePath(null);
-        document.getElementById('file-upload').value = "";
+        const fileInput = document.getElementById('file-upload');
+        if (fileInput) fileInput.value = "";
+    };
+
+    const handleDelete = async () => {
+        if (!editingTemplate) return;
+        if (!confirm("Are you sure you want to delete this template? This cannot be undone.")) return;
+
+        try {
+            const res = await fetch(`/api/templates/${editingTemplate.id}`, { method: 'DELETE' });
+            if (res.ok) {
+                toast.success("Template deleted");
+                fetchTemplates();
+                resetForm();
+            } else {
+                const data = await res.json();
+                toast.error("Delete failed: " + data.error);
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Delete error");
+        }
     };
 
 
@@ -261,12 +282,23 @@ function TemplateManager() {
                                     onChange={e => setSchemaJson(e.target.value)}
                                 />
                             </div>
-                            <button
-                                onClick={handleSave}
-                                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 transition-all"
-                            >
-                                {editingTemplate ? 'Update Template' : 'Save Template'}
-                            </button>
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={handleSave}
+                                    className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 transition-all"
+                                >
+                                    {editingTemplate ? 'Update Template' : 'Save Template'}
+                                </button>
+                                {editingTemplate && (
+                                    <button
+                                        onClick={handleDelete}
+                                        className="px-4 py-3 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl border border-red-200 transition-all"
+                                        title="Delete Template"
+                                    >
+                                        <Trash2 size={20} />
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
