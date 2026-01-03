@@ -226,7 +226,20 @@ function TemplateManager() {
                                         id="file-upload"
                                         type="file"
                                         accept=".docx"
-                                        onChange={e => setFile(e.target.files[0])}
+                                        onChange={e => {
+                                            const selectedFile = e.target.files[0];
+                                            if (selectedFile) {
+                                                setFile(selectedFile);
+                                                // Auto-fill name logic
+                                                if (!name) {
+                                                    const cleanName = selectedFile.name
+                                                        .replace(/\.docx?$/i, '') // Remove extension
+                                                        .replace(/[_-]/g, ' ')   // Replace separators with spaces
+                                                        .replace(/\b\w/g, c => c.toUpperCase()); // Title Case
+                                                    setName(cleanName);
+                                                }
+                                            }
+                                        }}
                                         className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                                     />
                                     <button
