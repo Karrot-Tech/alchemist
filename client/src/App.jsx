@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { SignedIn, SignedOut, RedirectToSignIn, useAuth } from "@clerk/clerk-react";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import { TranscriptionProvider } from './context/TranscriptionContext';
 import Dashboard from './pages/Dashboard';
@@ -13,17 +14,10 @@ import DraftsView from './pages/DraftsView';
 import ActivityHistory from './pages/ActivityHistory';
 import Settings from './pages/Settings';
 import LandingPage from './pages/LandingPage';
-
 import OnboardingTour from './components/OnboardingTour';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('ingest');
-  const [appMode, setAppMode] = useState('dashboard');
-  const [transcriptData, setTranscriptData] = useState(null);
-  const [currentSessionData, setCurrentSessionData] = useState(null); // For resuming drafts
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [libraryParams, setLibraryParams] = useState(null);
-
   const { getToken, isLoaded, isSignedIn } = useAuth();
 
   // Onboarding Check
@@ -112,119 +106,32 @@ function App() {
     );
   }
 
-  const startAssessment = async (t) => {
-    try {
-      const res = await fetch(`/api/transcripts/${t.id}`);
-      const fullData = await res.json();
-      if (!fullData || !fullData.content) throw new Error("Failed to load transcript content");
-
-      setTranscriptData({
-        text: fullData.content,
-        id: fullData.id,
-        patient: fullData.patient_name,
-        notes: fullData.notes,
-        assessments: fullData.assessments,
-        assessment: fullData.assessment_text,
-        audio_url: fullData.audio_url
-      });
-      handleNavigate('assessment');
-    } catch (err) {
-      console.error(err);
-      toast.error("Error loading transcript: " + err.message);
-    }
-  };
-
-  const resumeSession = async (t) => {
-    // Navigate to 'ingest' (NewSession) with pre-filled data
-    setCurrentSessionData({
-      content: t.content,
-      audio_url: t.audio_url,
-      patient_name: t.patient_name === 'Draft Patient' ? '' : t.patient_name,
-      patient_id: t.patient_id,
-      date: t.date,
-      notes: t.notes
-    });
-    handleNavigate('ingest');
-  };
-
-
-  const resumeById = async (id) => {
-    try {
-      const res = await fetch(`/api/transcripts/${id}`);
-      const fullData = await res.json();
-      if (!fullData) throw new Error("Failed to load session");
-
-      resumeSession(fullData);
-    } catch (err) {
-      console.error(err);
-      toast.error("Error loading session: " + err.message);
-    }
-  };
-
-  const handleNavigate = (tab, params = null) => {
-    setActiveTab(tab);
-    setAppMode(tab);
-    if (tab === 'library' && params) {
-      setLibraryParams(params);
-    }
-    if (tab === 'assessment' && params?.transcriptId) {
-      startAssessment({ id: params.transcriptId });
-    }
-    if (tab === 'ingest' && params?.transcriptId) {
-      resumeById(params.transcriptId);
-    }
-  };
-
   return (
-    <>
+    <BrowserRouter>
       <SignedOut>
         <LandingPage />
       </SignedOut>
       <SignedIn>
         <TranscriptionProvider>
           {showOnboarding && <OnboardingTour onComplete={handleOnboardingComplete} />}
-          <Layout activeTab={activeTab} onNavigate={handleNavigate}>
-            {appMode === 'dashboard' && <Dashboard onNavigate={handleNavigate} />}
-
-            {appMode === 'ingest' && (
-              <NewSession
-                onNavigate={handleNavigate}
-                initialSessionData={currentSessionData}
-              />
-            )}
-
-            {appMode === 'drafts' && <DraftsView onSelectTranscript={resumeSession} />}
-
-            {appMode === 'library' && (
-              <TranscriptLibrary
-                onSelectTranscript={startAssessment}
-                initialPatientId={libraryParams?.patientId}
-              />
-            )}
-
-            {appMode === 'assessment' && (
-              <AssessmentStudio
-                transcriptData={transcriptData}
-                onNavigate={handleNavigate}
-              />
-            )}
-
-            {appMode === 'templates' && <TemplateManager />}
-
-            {appMode === 'patients' && <PatientManager />}
-
-            {appMode === 'activity' && (
-              <ActivityHistory
-                onSelectTranscript={startAssessment}
-                onSelectDraft={resumeSession}
-              />
-            )}
-
-            {appMode === 'settings' && <Settings />}
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/new-session" element={<NewSession />} />
+              <Route path="/drafts" element={<DraftsView />} />
+              <Route path="/records" element={<TranscriptLibrary />} />
+              <Route path="/assessment/:id" element={<AssessmentStudio />} />
+              <Route path="/templates" element={<TemplateManager />} />
+              <Route path="/patients" element={<PatientManager />} />
+              <Route path="/activity" element={<ActivityHistory />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
           </Layout>
         </TranscriptionProvider>
       </SignedIn>
-    </>
+    </BrowserRouter>
   );
 }
 

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Search, FileText, Calendar, Edit, ChevronRight, Clipboard, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
-const DraftsView = ({ onSelectTranscript }) => {
+const DraftsView = () => {
+    const navigate = useNavigate();
     const [transcripts, setTranscripts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -64,7 +66,7 @@ const DraftsView = ({ onSelectTranscript }) => {
                     {filteredDrafts.map(t => (
                         <div
                             key={t.id}
-                            onClick={() => onSelectTranscript(t)}
+                            onClick={() => navigate(`/new-session?draftId=${t.id}`)}
                             className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col h-64"
                         >
                             <div className="flex justify-between items-start mb-4">

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Clock, FileText, ChevronRight, Calendar, User, Headphones, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
-const ActivityHistory = ({ onSelectTranscript, onSelectDraft }) => {
+const ActivityHistory = () => {
+    const navigate = useNavigate();
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -81,7 +83,13 @@ const ActivityHistory = ({ onSelectTranscript, onSelectDraft }) => {
                         return (
                             <div
                                 key={session.id}
-                                onClick={() => isUnassigned && onSelectDraft ? onSelectDraft(session) : onSelectTranscript(session)}
+                                onClick={() => {
+                                    if (isUnassigned) {
+                                        navigate(`/new-session?draftId=${session.id}`);
+                                    } else {
+                                        navigate(`/assessment/${session.id}`);
+                                    }
+                                }}
                                 className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer group even:bg-slate-100/40"
                             >
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">

@@ -2,24 +2,27 @@ import React from 'react';
 import { Toaster } from 'sonner';
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { Home, FileText, Users, Settings, LogOut, ChevronRight, Menu, X, Clock, PlusCircle, FolderOpen, Inbox } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-const Layout = ({ children, activeTab, onNavigate }) => {
+const Layout = ({ children }) => {
     const { user } = useUser();
     const { signOut, openUserProfile } = useClerk();
     const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+    const navigate = useNavigate();
+    const location = useLocation();
 
     const navItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: Home },
-        { id: 'activity', label: 'Activity History', icon: Clock },
-        { id: 'drafts', label: 'Sessions Inbox', icon: Inbox },
-        { id: 'library', label: 'Consult Records', icon: FolderOpen },
-        { id: 'patients', label: 'Patient Directory', icon: Users },
-        { id: 'templates', label: 'Clinical Template', icon: FileText },
-        { id: 'settings', label: 'Settings', icon: Settings },
+        { id: 'dashboard', path: '/dashboard', label: 'Dashboard', icon: Home },
+        { id: 'activity', path: '/activity', label: 'Activity History', icon: Clock },
+        { id: 'drafts', path: '/drafts', label: 'Sessions Inbox', icon: Inbox },
+        { id: 'library', path: '/records', label: 'Consult Records', icon: FolderOpen },
+        { id: 'patients', path: '/patients', label: 'Patient Directory', icon: Users },
+        { id: 'templates', path: '/templates', label: 'Clinical Template', icon: FileText },
+        { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
     ];
 
-    const handleNavigate = (id) => {
-        onNavigate(id);
+    const handleNavigate = (path) => {
+        navigate(path);
         setMobileMenuOpen(false);
     };
 
@@ -36,7 +39,7 @@ const Layout = ({ children, activeTab, onNavigate }) => {
                     >
                         {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
-                    <div className="flex items-center cursor-pointer" onClick={() => handleNavigate('dashboard')}>
+                    <div className="flex items-center cursor-pointer" onClick={() => handleNavigate('/dashboard')}>
                         <img src="/favicon.png" alt="Logo" className="h-8 w-8 mr-3 rounded-lg" />
                         <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-cyan-600 to-indigo-600 bg-clip-text text-transparent">Alchemist AI</span>
                         <span className="ml-2 text-[10px] font-semibold text-slate-300 uppercase tracking-widest">v1.0.0</span>
@@ -60,7 +63,7 @@ const Layout = ({ children, activeTab, onNavigate }) => {
                 {/* Brand (Desktop only) */}
                 <div
                     className="hidden lg:flex h-16 items-center px-6 border-b border-slate-100 cursor-pointer"
-                    onClick={() => handleNavigate('dashboard')}
+                    onClick={() => handleNavigate('/dashboard')}
                 >
                     <img src="/favicon.png" alt="Logo" className="h-8 w-8 mr-3 rounded-lg shadow-sm" />
                     <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-cyan-600 to-indigo-600 bg-clip-text text-transparent">Alchemist AI</span>
@@ -78,11 +81,13 @@ const Layout = ({ children, activeTab, onNavigate }) => {
                     <div className="space-y-1">
                         {navItems.map((item) => {
                             const Icon = item.icon;
-                            const isActive = activeTab === item.id;
+                            // Check if current path starts with the item path (handled deeper routes)
+                            // But for dashboard '/' vs '/dashboard', handle explicitly
+                            const isActive = location.pathname.startsWith(item.path);
                             return (
                                 <button
                                     key={item.id}
-                                    onClick={() => handleNavigate(item.id)}
+                                    onClick={() => handleNavigate(item.path)}
                                     className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive
                                         ? 'bg-indigo-50 text-indigo-700'
                                         : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'

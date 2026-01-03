@@ -2,17 +2,22 @@
 import React, { useState, useEffect } from 'react';
 import { Search, FileText, Calendar, User, ChevronRight, ArrowLeft, Headphones, ClipboardCheck, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
-const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
+const TranscriptLibrary = () => {
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const initialPatientId = searchParams.get('patientId');
+
     const [patients, setPatients] = useState([]);
     const [transcripts, setTranscripts] = useState([]);
-    const [selectedPatientId, setSelectedPatientId] = useState(initialPatientId || null);
+    const [selectedPatientId, setSelectedPatientId] = useState(initialPatientId ? parseInt(initialPatientId) : null);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Update selection if prop changes
+    // Update selection if URL param changes
     useEffect(() => {
-        if (initialPatientId) setSelectedPatientId(initialPatientId);
+        if (initialPatientId) setSelectedPatientId(parseInt(initialPatientId));
     }, [initialPatientId]);
 
     useEffect(() => {
@@ -108,7 +113,7 @@ const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
             {/* Left Sidebar: Patient List */}
             {/* Logic: Hidden on mobile IF a patient is selected. Always visible on Desktop */}
             <div className={`w-full lg:w-80 border-r border-slate-200 bg-white flex flex-col ${selectedPatientId ? 'hidden lg:flex' : 'flex'}`}>
-                <div className="p-4 border-b border-slate-100">
+                <div className="px-6 py-4 lg:p-4 border-b border-slate-100">
                     <h1 className="text-3xl font-bold text-slate-900 mb-6">Consult Records</h1>
                     <div className="relative">
                         <Search size={16} className="absolute left-3 top-3 text-slate-400" />
@@ -131,7 +136,7 @@ const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
                                 <button
                                     key={p.id}
                                     onClick={() => setSelectedPatientId(p.id)}
-                                    className={`w-full text-left p-4 hover:bg-slate-100 border-b border-slate-100 transition-colors flex items-center justify-between group even:bg-slate-100/40 ${selectedPatientId === p.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'border-l-4 border-transparent'}`}
+                                    className={`w-full text-left px-6 py-4 lg:p-4 hover:bg-slate-100 border-b border-slate-100 transition-colors flex items-center justify-between group even:bg-slate-100/40 ${selectedPatientId === p.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'border-l-4 border-transparent'}`}
                                 >
                                     <div>
                                         <p className={`font-medium text-sm ${selectedPatientId === p.id ? 'text-indigo-900' : 'text-slate-700'}`}>{p.name}</p>
@@ -160,9 +165,9 @@ const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
                         <header className="mb-8">
                             <button
                                 onClick={() => setSelectedPatientId(null)}
-                                className="lg:hidden flex items-center text-slate-500 mb-4 hover:text-slate-900 font-medium"
+                                className="lg:hidden flex items-center text-slate-500 mb-4 hover:text-slate-900 font-medium p-2 -ml-2 cursor-pointer"
                             >
-                                <ArrowLeft size={18} className="mr-1" /> Back to Patients
+                                <ArrowLeft className="w-6 h-6 mr-1" /> Back to Patients
                             </button>
                             <h1 className="text-3xl font-bold text-slate-900">{selectedPatient?.name}</h1>
                             <div className="flex items-center space-x-4 mt-2 text-sm text-slate-500">
@@ -183,7 +188,7 @@ const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
                                         <div
                                             key={t.id}
                                             className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group even:bg-slate-100/40"
-                                            onClick={() => onSelectTranscript(t)}
+                                            onClick={() => navigate(`/assessment/${t.id}`)}
                                         >
                                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
                                                 <div className="flex items-center space-x-2 text-indigo-600 font-medium shrink-0">

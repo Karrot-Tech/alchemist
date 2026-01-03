@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Mic, FolderOpen, Clock, Settings, UserPlus, FileText, ChevronRight, Activity, Users, Inbox } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@clerk/clerk-react';
+import { useNavigate } from 'react-router-dom';
 
-const Dashboard = ({ onNavigate }) => {
+const Dashboard = () => {
     const { user } = useUser();
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState({
         stats: { total_patients: 0, total_sessions: 0, total_records: 0, total_templates: 0 },
@@ -61,7 +63,7 @@ const Dashboard = ({ onNavigate }) => {
                     <p className="text-slate-500">Here is what's happening in your practice.</p>
                 </header>
                 <button
-                    onClick={() => onNavigate('ingest')}
+                    onClick={() => navigate('/new-session')}
                     className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:shadow-indigo-200 transition-all hover:-translate-y-0.5"
                 >
                     <Mic size={20} />
@@ -77,7 +79,7 @@ const Dashboard = ({ onNavigate }) => {
                     label="Session Inbox"
                     icon={<Inbox />}
                     color="indigo"
-                    onClick={() => onNavigate('drafts')}
+                    onClick={() => navigate('/drafts')}
                 />
                 <StatsActionCard
                     title="Patients"
@@ -85,7 +87,7 @@ const Dashboard = ({ onNavigate }) => {
                     label="Total Patients"
                     icon={<Users />}
                     color="emerald"
-                    onClick={() => onNavigate('patients')}
+                    onClick={() => navigate('/patients')}
                 />
                 <StatsActionCard
                     title="Records"
@@ -93,7 +95,7 @@ const Dashboard = ({ onNavigate }) => {
                     label="Consult Records"
                     icon={<FolderOpen />}
                     color="purple"
-                    onClick={() => onNavigate('library')}
+                    onClick={() => navigate('/records')}
                 />
                 <StatsActionCard
                     title="Templates"
@@ -101,7 +103,7 @@ const Dashboard = ({ onNavigate }) => {
                     label="Clinical Templates"
                     icon={<FileText />}
                     color="yellow"
-                    onClick={() => onNavigate('templates')}
+                    onClick={() => navigate('/templates')}
                 />
             </div>
 
@@ -114,7 +116,7 @@ const Dashboard = ({ onNavigate }) => {
                             Recent Activity
                         </h2>
                         {data.stats.total_sessions > 5 && (
-                            <button onClick={() => onNavigate('activity')} className="text-xs text-indigo-600 font-medium hover:underline">View All</button>
+                            <button onClick={() => navigate('/activity')} className="text-xs text-indigo-600 font-medium hover:underline">View All</button>
                         )}
                     </div>
 
@@ -139,9 +141,9 @@ const Dashboard = ({ onNavigate }) => {
                                             onClick={() => {
                                                 const isUnassigned = !activity.patient || activity.patient === 'Draft Patient';
                                                 if (isUnassigned) {
-                                                    onNavigate('ingest', { transcriptId: activity.id });
+                                                    navigate(`/new-session?draftId=${activity.id}`);
                                                 } else {
-                                                    onNavigate('assessment', { transcriptId: activity.id });
+                                                    navigate(`/assessment/${activity.id}`);
                                                 }
                                             }}
                                         >

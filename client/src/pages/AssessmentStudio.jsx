@@ -1,38 +1,70 @@
 import React, { useState, useEffect } from 'react';
 import SOAPEditor from '../components/SOAPEditor';
 import { ArrowLeft, Play, FileText, ChevronDown, Save, Sparkles, Download, RefreshCw } from 'lucide-react';
-
+import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-const AssessmentStudio = ({
-    transcriptData, // { text, id, patient, assessments, assessment (legacy) }
-    onNavigate
-}) => {
+const AssessmentStudio = () => {
+    const { id } = useParams();
+    const navigate = useNavigate();
+
+    // Internal state for fetching
+    const [transcriptData, setTranscriptData] = useState(null);
+    const [loadingTranscript, setLoadingTranscript] = useState(true);
+
     const [templates, setTemplates] = useState([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
     const [isAssessmentLoading, setIsAssessmentLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
     const [soapData, setSoapData] = useState(null);
-    const [assessmentHistory, setAssessmentHistory] = useState(transcriptData?.assessments || []);
+    const [assessmentHistory, setAssessmentHistory] = useState([]);
     const [analysisCount, setAnalysisCount] = useState(0);
     const [selectedHistoryInfo, setSelectedHistoryInfo] = useState(null); // Track selected item for UI highligth
-    const [doctorNotes, setDoctorNotes] = useState(transcriptData?.notes || '');
+    const [doctorNotes, setDoctorNotes] = useState('');
     const [mobileTab, setMobileTab] = useState('output'); // history, transcript, output
 
-    // Sync notes and assessment if transcriptData changes
-    // Sync notes and assessment if transcriptData changes
+    // Fetch Transcript Data based on ID
     useEffect(() => {
-        if (transcriptData?.notes) setDoctorNotes(transcriptData.notes);
-        if (transcriptData?.assessments) setAssessmentHistory(transcriptData.assessments);
+        if (!id) return;
+        setLoadingTranscript(true);
+        fetch(`/api/transcripts/${id}`)
+            .then(res => res.json())
+            .then(fullData => {
+                if (!fullData || !fullData.content) throw new Error("Failed to load transcript content");
 
-        // DO NOT Auto-load latest assessment. User must select one or run new.
+                const mappedData = {
+                    text: fullData.content,
+                    id: fullData.id,
+                    patient: fullData.patient_name,
+                    notes: fullData.notes,
+                    assessments: fullData.assessments,
+                    assessment: fullData.assessment_text,
+                    audio_url: fullData.audio_url
+                };
+
+                setTranscriptData(mappedData);
+
+                // Initialize dependent states
+                setDoctorNotes(fullData.notes || '');
+                setAssessmentHistory(fullData.assessments || []);
+
+                // Set initial mobile tab to transcript
+                setMobileTab('transcript');
+            })
+            .catch(err => {
+                console.error(err);
+                toast.error("Error loading transcript: " + err.message);
+                navigate('/records'); // Fallback
+            })
+            .finally(() => setLoadingTranscript(false));
+    }, [id, navigate]);
+
+    // Cleanup or reset when ID changes (though usually component remounts)
+    useEffect(() => {
         setSoapData(null);
         setSelectedHistoryInfo(null);
-
-        // Set initial mobile tab to transcript (since output is now empty)
-        setMobileTab('transcript');
-    }, [transcriptData]);
+    }, [id]);
 
     useEffect(() => {
         fetch('/api/templates')
@@ -42,6 +74,7 @@ const AssessmentStudio = ({
     }, []);
 
     const runAssessment = async () => {
+        if (!transcriptData) return;
         setIsAssessmentLoading(true);
         try {
             const res = await fetch('/assess-soap', {
@@ -177,14 +210,27 @@ const AssessmentStudio = ({
         }
     };
 
+    if (loadingTranscript) {
+        return (
+            <div className="h-full flex items-center justify-center bg-slate-50">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
+                    <p className="text-slate-500 font-medium text-sm">Loading Session Data...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!transcriptData) return null;
+
     return (
         <div className="h-full flex flex-col bg-slate-50 border-l border-slate-200 animate-fade-in text-slate-900 selection:bg-indigo-100 selection:text-indigo-900">
             {/* Studio Header */}
             <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 shadow-sm z-30 sticky top-0 md:top-0">
                 <div className="flex items-center justify-between lg:justify-start lg:space-x-4">
                     <div className="flex items-center space-x-2 md:space-x-4">
-                        <button onClick={() => onNavigate('library')} className="text-slate-500 hover:text-slate-800 transition-colors flex items-center transition-all active:scale-95 group">
-                            <ArrowLeft size={18} className="md:mr-1 group-hover:-translate-x-0.5 transition-transform" />
+                        <button onClick={() => navigate('/records')} className="cursor-pointer text-slate-500 hover:text-slate-800 transition-colors flex items-center transition-all active:scale-95 group p-2 -ml-2 md:p-0 md:ml-0">
+                            <ArrowLeft className="w-6 h-6 md:w-5 md:h-5 md:mr-1 group-hover:-translate-x-0.5 transition-transform" />
                             <span className="text-xs md:text-sm font-medium hidden sm:inline">Consult Records</span>
                         </button>
                         <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>

@@ -4,16 +4,19 @@ import TranscriptViewer from '../components/TranscriptViewer';
 import { ArrowLeft, CheckCircle, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranscription } from '../context/TranscriptionContext';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
-const NewSession = ({ onNavigate, initialSessionData }) => {
-    const [transcriptData, setTranscriptData] = useState(
-        initialSessionData ? { text: initialSessionData.content } : null
-    );
-    const [audioUrl, setAudioUrl] = useState(initialSessionData?.audio_url || null);
-    const [patientName, setPatientName] = useState(initialSessionData?.patient_name || '');
-    const [selectedPatientId, setSelectedPatientId] = useState(initialSessionData?.patient_id || null);
-    const [recordDate, setRecordDate] = useState(initialSessionData?.date || new Date().toISOString().split('T')[0]);
-    const [doctorNotes, setDoctorNotes] = useState(initialSessionData?.notes || '');
+const NewSession = () => {
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const draftId = searchParams.get('draftId');
+
+    const [transcriptData, setTranscriptData] = useState(null);
+    const [audioUrl, setAudioUrl] = useState(null);
+    const [patientName, setPatientName] = useState('');
+    const [selectedPatientId, setSelectedPatientId] = useState(null);
+    const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
+    const [doctorNotes, setDoctorNotes] = useState('');
     const [saveStatus, setSaveStatus] = useState('idle');
 
     // Context Integration
@@ -47,17 +50,29 @@ const NewSession = ({ onNavigate, initialSessionData }) => {
             .catch(err => console.error(err));
     }, []);
 
-    // Reset/Sync state if initialSessionData changes (e.g., loading a draft)
+    // Load Draft if draftId is present
     useEffect(() => {
-        if (initialSessionData) {
-            setTranscriptData({ text: initialSessionData.content });
-            setAudioUrl(initialSessionData.audio_url);
-            setPatientName(initialSessionData.patient_name || '');
-            setSelectedPatientId(initialSessionData.patient_id || null);
-            setRecordDate(initialSessionData.date || new Date().toISOString().split('T')[0]);
-            setDoctorNotes(initialSessionData.notes || '');
-        }
-    }, [initialSessionData]);
+        if (!draftId) return;
+
+        const loadDraft = async () => {
+            try {
+                const res = await fetch(`/api/transcripts/${draftId}`);
+                const fullData = await res.json();
+                if (!fullData) throw new Error("Failed to load session");
+
+                setTranscriptData({ text: fullData.content });
+                setAudioUrl(fullData.audio_url);
+                setPatientName(fullData.patient_name === 'Draft Patient' ? '' : (fullData.patient_name || ''));
+                setSelectedPatientId(fullData.patient_id || null);
+                setRecordDate(fullData.date || new Date().toISOString().split('T')[0]);
+                setDoctorNotes(fullData.notes || '');
+            } catch (err) {
+                console.error(err);
+                toast.error("Error loading session: " + err.message);
+            }
+        };
+        loadDraft();
+    }, [draftId]);
 
     const handlePatientChange = (e) => {
         const val = e.target.value;
@@ -167,7 +182,7 @@ const NewSession = ({ onNavigate, initialSessionData }) => {
                 setSaveStatus('success');
                 toast.success("Patient record saved to Library.");
                 setTimeout(() => {
-                    onNavigate('library', { patientId: finalPatientId });
+                    navigate(`/records?patientId=${finalPatientId}`);
                 }, 1000);
             } else {
                 throw new Error(data.error || "Save failed");
@@ -182,8 +197,8 @@ const NewSession = ({ onNavigate, initialSessionData }) => {
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-10 animate-fade-in text-slate-900">
             <div className="mb-8">
-                <button onClick={() => onNavigate('dashboard')} className="text-slate-500 hover:text-indigo-600 font-medium mb-4 flex items-center transition-colors">
-                    <ArrowLeft size={18} className="mr-2" />
+                <button onClick={() => navigate('/dashboard')} className="cursor-pointer text-slate-500 hover:text-indigo-600 font-medium mb-4 flex items-center transition-colors p-2 -ml-2 md:p-0 md:ml-0">
+                    <ArrowLeft className="w-6 h-6 md:w-[18px] md:h-[18px] mr-2" />
                     Back to Dashboard
                 </button>
                 <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">Patient Sessions Transcript</h2>
