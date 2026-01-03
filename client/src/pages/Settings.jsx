@@ -50,7 +50,7 @@ const Settings = () => {
     };
 
     return (
-        <div className="max-w-6xl mx-auto p-8 animate-fade-in text-slate-900">
+        <div className="max-w-6xl mx-auto p-4 md:p-8 animate-fade-in text-slate-900">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-slate-900">System Brains & Agents</h1>
                 <p className="text-slate-500 mt-1">Tune the AI personas that power the Alchemist platform.</p>
@@ -58,7 +58,7 @@ const Settings = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                 {/* Agent List */}
-                <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
                     {loading ? <p>Loading brains...</p> : agents.map(agent => (
                         <button
                             key={agent.id}
@@ -81,7 +81,7 @@ const Settings = () => {
 
                 {/* Editor */}
                 <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col h-[600px]">
-                    <div className="flex justify-between items-center mb-4">
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
                         <h2 className="font-bold text-lg flex items-center gap-2">
                             <Cpu size={20} className="text-indigo-500" />
                             Core Instruction Set
@@ -89,9 +89,9 @@ const Settings = () => {
                         <button
                             onClick={handleSave}
                             disabled={saving}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 disabled:opacity-50"
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-emerald-100 transition-all active:scale-95"
                         >
-                            <Save size={16} /> {saving ? 'Tunng...' : 'Save Configuration'}
+                            <Save size={16} /> {saving ? 'Saving...' : 'Save Configuration'}
                         </button>
                     </div>
                     <div className="flex-1 relative">
