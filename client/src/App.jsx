@@ -124,7 +124,8 @@ function App() {
         patient: fullData.patient_name,
         notes: fullData.notes,
         assessments: fullData.assessments,
-        assessment: fullData.assessment_text
+        assessment: fullData.assessment_text,
+        audio_url: fullData.audio_url
       });
       handleNavigate('assessment');
     } catch (err) {

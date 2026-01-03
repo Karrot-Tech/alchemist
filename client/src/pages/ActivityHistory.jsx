@@ -118,9 +118,18 @@ const ActivityHistory = ({ onSelectTranscript, onSelectDraft }) => {
                                 </div>
 
                                 <div className="px-1">
-                                    <p className="text-slate-600 text-sm line-clamp-2 leading-relaxed italic">
+                                    <p className="text-slate-600 text-sm line-clamp-2 leading-relaxed italic mb-4">
                                         "{session.content || 'No transcript content recorded.'}"
                                     </p>
+
+                                    {session.audio_url && (
+                                        <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                                            <audio controls preload="metadata" className="h-8 flex-1">
+                                                <source src={session.audio_url} type="audio/mpeg" />
+                                                Your browser does not support the audio element.
+                                            </audio>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         );

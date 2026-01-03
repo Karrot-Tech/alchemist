@@ -348,12 +348,25 @@ const AssessmentStudio = ({
 
                 {/* Column 2: Transcript & Notes (35%) */}
                 <div className={`${mobileTab === 'transcript' ? 'flex w-full' : 'hidden'} lg:flex lg:w-[35%] border-r border-slate-200 bg-white flex-col relative z-10 h-full overflow-hidden`}>
-                    <div className="px-6 py-3 bg-slate-50/80 backdrop-blur-sm border-b border-slate-100 flex items-center shrink-0">
+                    <div className="px-6 py-3 bg-slate-50/80 backdrop-blur-sm border-b border-slate-100 flex items-center justify-between shrink-0">
                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center">
                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-2"></span>
                             Source Transcript
                         </span>
+                        {transcriptData?.audio_url && (
+                            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest flex items-center gap-1.5">
+                                <Play size={10} fill="currentColor" /> Audio Attached
+                            </span>
+                        )}
                     </div>
+                    {transcriptData?.audio_url && (
+                        <div className="px-6 py-3 bg-white border-b border-slate-200">
+                            <audio controls preload="metadata" className="h-8 w-full">
+                                <source src={transcriptData.audio_url} type="audio/mpeg" />
+                                Your browser does not support the audio element.
+                            </audio>
+                        </div>
+                    )}
                     <div className="flex-1 overflow-y-auto p-8 font-mono text-xs leading-relaxed text-slate-600 bg-slate-50/20 selection:bg-indigo-100 selection:text-indigo-900 border-b border-slate-200">
                         {transcriptData?.text}
                     </div>
