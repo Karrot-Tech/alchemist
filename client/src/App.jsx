@@ -105,7 +105,13 @@ function App() {
       const fullData = await res.json();
       if (!fullData || !fullData.content) throw new Error("Failed to load transcript content");
 
-      setTranscriptData({ text: fullData.content, id: fullData.id, patient: fullData.patient_name, notes: fullData.notes });
+      setTranscriptData({
+        text: fullData.content,
+        id: fullData.id,
+        patient: fullData.patient_name,
+        notes: fullData.notes,
+        assessment: fullData.assessment_text
+      });
       handleNavigate('assessment');
     } catch (err) {
       console.error(err);

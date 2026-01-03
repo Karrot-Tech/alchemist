@@ -103,12 +103,12 @@ app.put('/api/patients/:id', requireAuth, async (req, res) => {
 // --- Transcript Management Routes (Protected) ---
 app.post('/api/transcripts', requireAuth, async (req, res) => {
     try {
-        const { patient_name, date, content, notes, patient_id } = req.body;
+        const { patient_name, date, content, notes, patient_id, audio_url, assessment_text } = req.body;
         if (!patient_name || !date || !content) {
             return res.status(400).json({ error: "Missing required fields" });
         }
         // Clerk req.auth.userId
-        const id = await promptService.saveTranscript(patient_name, date, content, notes, patient_id, req.auth.userId);
+        const id = await promptService.saveTranscript(patient_name, date, content, notes, patient_id, req.auth.userId, audio_url, assessment_text);
         res.json({ success: true, id });
     } catch (error) {
         console.error("Save transcript error:", error);
@@ -132,6 +132,18 @@ app.get('/api/transcripts/:id', requireAuth, async (req, res) => {
         res.json(item);
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch transcript" });
+    }
+});
+
+app.put('/api/transcripts/:id/assessment', requireAuth, async (req, res) => {
+    try {
+        const { assessment_text } = req.body;
+        const result = await promptService.updateTranscriptAssessment(req.params.id, assessment_text, req.auth.userId);
+        if (result.rowCount === 0) return res.status(404).json({ error: "Transcript not found" });
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Update assessment error:", error);
+        res.status(500).json({ error: "Failed to update assessment" });
     }
 });
 
@@ -218,12 +230,30 @@ app.post('/transcribe', requireAuth, upload.single('audio'), async (req, res) =>
 
         const transcriptText = result.response.text();
 
+        // 5. [NEW] Store audio permanently in Vercel Blob
+        let permanentAudioUrl = null;
+        try {
+            const blobFilename = `dictations/${Date.now()}-${req.file.originalname}`;
+            const blobResult = await put(blobFilename, req.file.buffer, {
+                access: 'public',
+                contentType: mimeType
+            });
+            permanentAudioUrl = blobResult.url;
+            console.log(`Audio saved permanently: ${permanentAudioUrl}`);
+        } catch (blobErr) {
+            console.error("Failed to save audio to Blob:", blobErr);
+            // Don't fail the whole request if only blob storage fails
+        }
+
         // Cleanup: Delete local temp file
         if (fs.existsSync(tempFilePath)) {
             fs.unlinkSync(tempFilePath);
         }
 
-        res.json({ transcript: transcriptText });
+        res.json({
+            transcript: transcriptText,
+            audioUrl: permanentAudioUrl
+        });
 
     } catch (error) {
         console.error("Transcribe Error:", error);

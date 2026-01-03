@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import SOAPEditor from '../components/SOAPEditor';
-import { ArrowLeft, Play, FileText, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Play, FileText, ChevronDown, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AssessmentStudio = ({
@@ -10,13 +10,21 @@ const AssessmentStudio = ({
     const [templates, setTemplates] = useState([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
     const [isAssessmentLoading, setIsAssessmentLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [soapData, setSoapData] = useState(null);
     const [analysisCount, setAnalysisCount] = useState(0);
     const [doctorNotes, setDoctorNotes] = useState(transcriptData?.notes || '');
 
-    // Sync notes if transcriptData changes
+    // Sync notes and assessment if transcriptData changes
     useEffect(() => {
         if (transcriptData?.notes) setDoctorNotes(transcriptData.notes);
+        if (transcriptData?.assessment) {
+            try {
+                setSoapData(JSON.parse(transcriptData.assessment));
+            } catch (e) {
+                console.error("Failed to parse stored assessment:", e);
+            }
+        }
     }, [transcriptData]);
 
     useEffect(() => {
@@ -51,6 +59,30 @@ const AssessmentStudio = ({
             toast.error("Assessment failed. Please check the backend.");
         } finally {
             setIsAssessmentLoading(false);
+        }
+    };
+
+    const handleSaveReport = async () => {
+        if (!transcriptData?.id || !soapData) return;
+
+        setIsSaving(true);
+        try {
+            const res = await fetch(`/api/transcripts/${transcriptData.id}/assessment`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ assessment_text: JSON.stringify(soapData) })
+            });
+
+            if (res.ok) {
+                toast.success("Assessment saved to patient record.");
+            } else {
+                throw new Error("Failed to save assessment");
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error(err.message);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -129,6 +161,21 @@ const AssessmentStudio = ({
                         )}
                         <span>{isAssessmentLoading ? 'Analyzing...' : 'Run Analysis'}</span>
                     </button>
+
+                    {soapData && transcriptData?.id && (
+                        <button
+                            onClick={handleSaveReport}
+                            disabled={isSaving}
+                            className="px-6 py-2.5 bg-emerald-600 text-white font-medium rounded-xl shadow-md shadow-emerald-200 hover:bg-emerald-700 disabled:opacity-50 transition-all active:scale-95 flex items-center space-x-2"
+                        >
+                            {isSaving ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                            ) : (
+                                <Save size={16} />
+                            )}
+                            <span>{isSaving ? 'Saving...' : 'Save to Record'}</span>
+                        </button>
+                    )}
                 </div>
             </div>
 

@@ -92,11 +92,17 @@ class PromptService {
                         date TEXT,
                         content TEXT,
                         notes TEXT,
+                        audio_url TEXT,
+                        assessment_text TEXT,
                         patient_id INTEGER REFERENCES patients(id),
                         doctor_id TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 `);
+
+                // Migrations (for existing tables)
+                try { await client.query(`ALTER TABLE transcripts ADD COLUMN IF NOT EXISTS audio_url TEXT`); } catch (e) { }
+                try { await client.query(`ALTER TABLE transcripts ADD COLUMN IF NOT EXISTS assessment_text TEXT`); } catch (e) { }
 
             } finally {
                 client.release();
@@ -226,12 +232,12 @@ class PromptService {
     }
 
     // --- Transcripts ---
-    async saveTranscript(patientName, date, content, notes, patientId, userId) {
+    async saveTranscript(patientName, date, content, notes, patientId, userId, audioUrl, assessmentText) {
         try {
             const result = await this.pool.query(
-                `INSERT INTO transcripts(patient_name, date, content, notes, patient_id, doctor_id) 
-                 VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
-                [patientName, date, content, notes || '', patientId || null, userId]
+                `INSERT INTO transcripts(patient_name, date, content, notes, patient_id, doctor_id, audio_url, assessment_text) 
+                 VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+                [patientName, date, content, notes || '', patientId || null, userId, audioUrl || null, assessmentText || null]
             );
             return result.rows[0].id;
         } catch (err) {
@@ -259,6 +265,18 @@ class PromptService {
                 [id, userId]
             );
             return result.rows[0];
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    async updateTranscriptAssessment(id, assessmentText, userId) {
+        try {
+            const result = await this.pool.query(
+                `UPDATE transcripts SET assessment_text = $1 WHERE id = $2 AND doctor_id = $3`,
+                [assessmentText, id, userId]
+            );
+            return { success: true, rowCount: result.rowCount };
         } catch (err) {
             throw err;
         }

@@ -177,7 +177,10 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
             }
 
             const data = await response.json();
-            onTranscriptionComplete(data.transcript);
+            onTranscriptionComplete({
+                transcript: data.transcript,
+                audioUrl: data.audioUrl
+            });
             setFile(null);
             setAudioBlob(null);
         } catch (err) {

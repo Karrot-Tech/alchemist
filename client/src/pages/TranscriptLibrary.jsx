@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, FileText, Calendar, User, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Search, FileText, Calendar, User, ChevronRight, ArrowLeft, Headphones, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TranscriptLibrary = ({ onSelectTranscript }) => {
@@ -125,13 +125,35 @@ const TranscriptLibrary = ({ onSelectTranscript }) => {
                                                     <Calendar size={16} />
                                                     <span>{t.date}</span>
                                                 </div>
-                                                <span className="text-xs font-bold px-2 py-1 bg-slate-100 rounded-md text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                                                    View Analysis &rarr;
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    {t.audio_url && (
+                                                        <span className="text-[10px] font-bold uppercase py-1 px-2 bg-indigo-50 text-indigo-600 rounded-md flex items-center gap-1">
+                                                            <Headphones size={10} /> Audio
+                                                        </span>
+                                                    )}
+                                                    {t.assessment_text && (
+                                                        <span className="text-[10px] font-bold uppercase py-1 px-2 bg-emerald-50 text-emerald-600 rounded-md flex items-center gap-1">
+                                                            <ClipboardCheck size={10} /> Report
+                                                        </span>
+                                                    )}
+                                                    <span className="text-xs font-bold px-2 py-1 bg-slate-100 rounded-md text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                                        View &rarr;
+                                                    </span>
+                                                </div>
                                             </div>
                                             <p className="text-slate-600 line-clamp-2 text-sm mb-3">
                                                 {t.content}
                                             </p>
+
+                                            {t.audio_url && (
+                                                <div className="mb-3 p-2 bg-slate-50 rounded-lg border border-slate-100 flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                                                    <audio controls className="h-8 flex-1">
+                                                        <source src={t.audio_url} type="audio/webm" />
+                                                        Your browser does not support the audio element.
+                                                    </audio>
+                                                </div>
+                                            )}
+
                                             {t.notes && (
                                                 <div className="text-xs bg-yellow-50 text-yellow-800 p-3 rounded-lg border border-yellow-100">
                                                     <strong>Note:</strong> {t.notes}

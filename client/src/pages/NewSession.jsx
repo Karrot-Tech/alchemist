@@ -5,7 +5,8 @@ import { ArrowLeft, CheckCircle, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 const NewSession = ({ onNavigate }) => {
-    const [transcriptData, setTranscriptData] = useState(null); // { text }
+    const [transcriptData, setTranscriptData] = useState(null); // { text, audioUrl }
+    const [audioUrl, setAudioUrl] = useState(null);
     const [patientName, setPatientName] = useState('');
     const [selectedPatientId, setSelectedPatientId] = useState(null);
     const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
@@ -39,8 +40,9 @@ const NewSession = ({ onNavigate }) => {
         }
     };
 
-    const handleTranscriptionComplete = (text) => {
-        setTranscriptData({ text });
+    const handleTranscriptionComplete = (data) => {
+        setTranscriptData({ text: data.transcript });
+        setAudioUrl(data.audioUrl);
         toast.success("Audio transcribed successfully.");
     };
 
@@ -77,7 +79,9 @@ const NewSession = ({ onNavigate }) => {
                     patient_id: finalPatientId, // Now validated
                     date: recordDate,
                     content: transcriptData.text,
-                    notes: doctorNotes
+                    notes: doctorNotes,
+                    audio_url: audioUrl,
+                    assessment_text: null // Initially null, saved from AssessmentStudio later
                 })
             });
             const data = await res.json();
