@@ -174,7 +174,7 @@ const PatientManager = () => {
                             <tr>
                                 <th className="px-6 py-3">Patient Name</th>
                                 <th className="px-6 py-3">MRN</th>
-                                <th className="px-6 py-3">DOB</th>
+                                <th className="px-6 py-3 hidden md:table-cell">DOB</th>
                                 <th className="px-6 py-3 hidden md:table-cell">Added</th>
                                 <th className="px-6 py-3 text-right">Actions</th>
                             </tr>
@@ -184,7 +184,7 @@ const PatientManager = () => {
                                 <tr key={p.id} className="group hover:bg-slate-50 transition-colors even:bg-slate-50/50">
                                     <td className="px-6 py-4 font-medium text-slate-900">{p.name}</td>
                                     <td className="px-6 py-4 text-slate-500 font-mono text-xs">{p.mrn || '-'}</td>
-                                    <td className="px-6 py-4 text-slate-500">{formatDate(p.dob)}</td>
+                                    <td className="px-6 py-4 text-slate-500 hidden md:table-cell">{formatDate(p.dob)}</td>
                                     <td className="px-6 py-4 text-slate-400 text-xs hidden md:table-cell">
                                         {formatDate(p.created_at)}
                                     </td>
