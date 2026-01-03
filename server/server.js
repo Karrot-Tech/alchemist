@@ -373,12 +373,15 @@ app.post('/api/templates', requireAuth, upload.single('file'), async (req, res) 
         // Upload to Vercel Blob
         const blob = await put(req.file.originalname, req.file.buffer, {
             access: 'public',
+            token: process.env.BLOB_READ_WRITE_TOKEN
         });
 
-        // Parse schema_json string if needed, but it's passed as string to createTemplate
+        // Parse schema_json string if needed
         let schemaObj = schema_json;
         if (typeof schema_json === 'string') {
-            try { schemaObj = JSON.parse(schema_json); } catch (e) { }
+            try { schemaObj = JSON.parse(schema_json); } catch (e) {
+                console.warn("Schema parse warning:", e.message);
+            }
         }
 
         const id = await promptService.createTemplate(name, description, blob.url, prompt_text, schemaObj, req.auth.userId);
