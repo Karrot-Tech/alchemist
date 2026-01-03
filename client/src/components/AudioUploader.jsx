@@ -290,7 +290,8 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
             if (!genRes.ok) {
                 try {
                     const errData = await genRes.json();
-                    throw new Error(errData.message || errData.error || "Transcript generation failed");
+                    const fullMessage = errData.message ? `${errData.error || 'Error'}: ${errData.message}` : (errData.error || "Transcript generation failed");
+                    throw new Error(fullMessage);
                 } catch (e) {
                     throw new Error(e.message || "Transcript generation failed");
                 }

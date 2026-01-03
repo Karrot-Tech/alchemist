@@ -240,17 +240,16 @@ app.post('/api/upload', requireAuth, upload.single('audio'), async (req, res) =>
         let mimeType = req.file.mimetype;
 
         // Normalize MIME Types for Gemini
-        // audio/mp4 (standard on iOS) is often better handled as audio/aac or left as is if known,
-        // but Gemini docs specifically mention audio/aac.
-        if (mimeType === 'audio/mp4' || req.file.originalname.endsWith('.mp4') || req.file.originalname.endsWith('.m4a')) {
+        // audio/mp4 (standard on iOS) is often better handled as audio/aac.
+        if (mimeType === 'audio/mp4' || mimeType === 'audio/x-m4a' || req.file.originalname.endsWith('.mp4') || req.file.originalname.endsWith('.m4a')) {
             mimeType = "audio/aac";
-        } else if (mimeType === 'application/octet-stream' && req.file.originalname.endsWith('.mp3')) {
+        } else if ((mimeType === 'application/octet-stream' || mimeType === 'audio/mpeg') && req.file.originalname.endsWith('.mp3')) {
             mimeType = "audio/mp3";
         }
 
         mimeType = mimeType || "audio/mp3";
 
-        console.log(`[Async] Uploading to Gemini with MIME: ${mimeType}`);
+        console.log(`[Async] Uploading to Gemini. Original: ${req.file.mimetype}, Normalized: ${mimeType}, File: ${req.file.originalname}`);
 
         const uploadResult = await fileManager.uploadFile(tempFilePath, {
             mimeType: mimeType,
@@ -315,12 +314,14 @@ app.post('/api/generate', requireAuth, async (req, res) => {
 
         // Normalize MIME type to match the upload logic
         let normalizedMime = mime_type;
-        if (normalizedMime === 'audio/mp4' || file_uri.toLowerCase().includes('.mp4') || file_uri.toLowerCase().includes('.m4a')) {
+        if (normalizedMime === 'audio/mp4' || normalizedMime === 'audio/x-m4a' || normalizedMime === 'audio/aac') {
             normalizedMime = "audio/aac";
+        } else if (normalizedMime === 'audio/mp3' || normalizedMime === 'audio/mpeg') {
+            normalizedMime = "audio/mp3";
         }
         normalizedMime = normalizedMime || "audio/mp3";
 
-        console.log(`[Async] Generating transcript for: ${file_uri} with MIME: ${normalizedMime}`);
+        console.log(`[Async] Generating transcript for URI: ${file_uri}, MIME: ${normalizedMime}`);
 
         const modelName = process.env.GEMINI_MODEL_TRANSCRIBE || "gemini-2.0-flash";
         const model = genAI.getGenerativeModel({ model: modelName });
