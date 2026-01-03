@@ -1,6 +1,5 @@
 {
     "outputDirectory": "client/dist",
-    "maxDuration": 60,
     "rewrites": [
         {
             "source": "/ping",
