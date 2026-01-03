@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Search, FileText, Calendar, User, ChevronRight } from 'lucide-react';
+import { Search, FileText, Calendar, User, ChevronRight, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TranscriptLibrary = ({ onSelectTranscript }) => {
@@ -40,7 +41,8 @@ const TranscriptLibrary = ({ onSelectTranscript }) => {
     return (
         <div className="flex h-full animate-fade-in text-slate-900">
             {/* Left Sidebar: Patient List */}
-            <div className="w-80 border-r border-slate-200 bg-white flex flex-col">
+            {/* Logic: Hidden on mobile IF a patient is selected. Always visible on Desktop */}
+            <div className={`w-full lg:w-80 border-r border-slate-200 bg-white flex flex-col ${selectedPatientId ? 'hidden lg:flex' : 'flex'}`}>
                 <div className="p-4 border-b border-slate-100">
                     <h2 className="font-bold text-lg mb-4 text-slate-800">Records</h2>
                     <div className="relative">
@@ -79,7 +81,8 @@ const TranscriptLibrary = ({ onSelectTranscript }) => {
             </div>
 
             {/* Right Main: Patient Records */}
-            <div className="flex-1 bg-slate-50 flex flex-col overflow-hidden">
+            {/* Logic: Hidden on mobile IF NO patient is selected. Always visible on Desktop */}
+            <div className={`flex-1 bg-slate-50 flex flex-col overflow-hidden ${!selectedPatientId ? 'hidden lg:flex' : 'flex'}`}>
                 {!selectedPatientId ? (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8">
                         <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
@@ -90,6 +93,12 @@ const TranscriptLibrary = ({ onSelectTranscript }) => {
                 ) : (
                     <div className="flex-1 overflow-y-auto p-8">
                         <header className="mb-8">
+                            <button
+                                onClick={() => setSelectedPatientId(null)}
+                                className="lg:hidden flex items-center text-slate-500 mb-4 hover:text-slate-900 font-medium"
+                            >
+                                <ArrowLeft size={18} className="mr-1" /> Back to Patients
+                            </button>
                             <h1 className="text-3xl font-bold text-slate-900">{selectedPatient?.name}</h1>
                             <div className="flex items-center space-x-4 mt-2 text-sm text-slate-500">
                                 <span>MRN: {selectedPatient?.mrn || 'N/A'}</span>
