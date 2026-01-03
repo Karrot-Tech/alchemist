@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import SOAPEditor from '../components/SOAPEditor';
-import { ArrowLeft, Play, FileText, ChevronDown, Save } from 'lucide-react';
+import { ArrowLeft, Play, FileText, ChevronDown, Save, Sparkles, Download } from 'lucide-react';
+
 import { toast } from 'sonner';
 
 const AssessmentStudio = ({
@@ -11,28 +12,26 @@ const AssessmentStudio = ({
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
     const [isAssessmentLoading, setIsAssessmentLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+
     const [soapData, setSoapData] = useState(null);
     const [assessmentHistory, setAssessmentHistory] = useState(transcriptData?.assessments || []);
     const [analysisCount, setAnalysisCount] = useState(0);
+    const [selectedHistoryInfo, setSelectedHistoryInfo] = useState(null); // Track selected item for UI highligth
     const [doctorNotes, setDoctorNotes] = useState(transcriptData?.notes || '');
+    const [mobileTab, setMobileTab] = useState('output'); // history, transcript, output
 
+    // Sync notes and assessment if transcriptData changes
     // Sync notes and assessment if transcriptData changes
     useEffect(() => {
         if (transcriptData?.notes) setDoctorNotes(transcriptData.notes);
         if (transcriptData?.assessments) setAssessmentHistory(transcriptData.assessments);
 
-        // Load latest assessment by default if available
-        if (transcriptData?.assessments?.length > 0) {
-            setSoapData(transcriptData.assessments[0].content);
-        } else if (transcriptData?.assessment) {
-            // Fallback for legacy
-            try {
-                const parsed = typeof transcriptData.assessment === 'string'
-                    ? JSON.parse(transcriptData.assessment)
-                    : transcriptData.assessment;
-                setSoapData(parsed);
-            } catch (e) { }
-        }
+        // DO NOT Auto-load latest assessment. User must select one or run new.
+        setSoapData(null);
+        setSelectedHistoryInfo(null);
+
+        // Set initial mobile tab to transcript (since output is now empty)
+        setMobileTab('transcript');
     }, [transcriptData]);
 
     useEffect(() => {
@@ -61,6 +60,7 @@ const AssessmentStudio = ({
             const data = await res.json();
             setSoapData(data);
             setAnalysisCount(prev => prev + 1);
+            setMobileTab('output'); // Switch to output on mobile
             toast.success("Assessment generated successfully.");
         } catch (error) {
             console.error(error);
@@ -138,7 +138,9 @@ const AssessmentStudio = ({
             a.download = `${finalData.patient_name || 'Assessment'}_${new Date().toISOString().split('T')[0]}.docx`;
             document.body.appendChild(a);
             a.click();
+            a.click();
             a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 100);
             toast.success("Document saved and downloaded.");
         } catch (error) {
             console.error(error);
@@ -146,18 +148,53 @@ const AssessmentStudio = ({
         }
     };
 
+    const handleDownloadOnly = async (finalData) => {
+        try {
+            toast.info("Generating document...");
+            // Skip persistAssessment
+
+            const res = await fetch('/generate-document', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    template_id: parseInt(selectedTemplateId),
+                    data: finalData
+                }),
+            });
+
+            if (!res.ok) throw new Error("Document generation failed");
+
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${finalData.patient_name || 'Assessment'}_${new Date().toISOString().split('T')[0]}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+            toast.success("Document downloaded (not saved).");
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to process document.");
+        }
+    };
+
     return (
-        <div className="h-full flex flex-col bg-slate-50 border-l border-slate-200 animate-fade-in text-slate-900Selection:bg-indigo-100 selection:text-indigo-900">
+        <div className="h-full flex flex-col bg-slate-50 border-l border-slate-200 animate-fade-in text-slate-900 selection:bg-indigo-100 selection:text-indigo-900">
             {/* Studio Header */}
             <div className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm z-30 sticky top-0">
                 <div className="flex items-center space-x-4">
                     <button onClick={() => onNavigate('library')} className="text-slate-500 hover:text-slate-800 transition-colors flex items-center transition-all active:scale-95">
                         <ArrowLeft size={18} className="mr-1" />
-                        <span className="text-sm font-medium">Library</span>
+                        <span className="text-sm font-medium">Consult Records</span>
                     </button>
                     <div className="h-6 w-px bg-slate-200"></div>
                     <div>
-                        <h1 className="text-lg font-bold text-slate-800 tracking-tight">{transcriptData?.patient || 'Unknown Patient'}</h1>
+                        <h1 className="text-lg font-bold text-slate-800 tracking-tight">
+                            {soapData?.patient_name || transcriptData?.patient || 'Unknown Patient'}
+                        </h1>
                         <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Assessment Studio</p>
                     </div>
                 </div>
@@ -188,33 +225,67 @@ const AssessmentStudio = ({
                         {isAssessmentLoading ? (
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
                         ) : (
-                            <Play size={16} fill="currentColor" />
+                            <Sparkles size={16} fill="currentColor" />
                         )}
                         <span>{isAssessmentLoading ? 'Analyzing...' : 'Run Analysis'}</span>
                     </button>
 
                     {soapData && transcriptData?.id && (
-                        <button
-                            onClick={handleSaveReport}
-                            disabled={isSaving}
-                            className="px-6 py-2.5 bg-emerald-600 text-white font-medium rounded-xl shadow-md shadow-emerald-200 hover:bg-emerald-700 disabled:opacity-50 transition-all active:scale-95 flex items-center space-x-2"
-                        >
-                            {isSaving ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                            ) : (
-                                <Save size={16} />
-                            )}
-                            <span>{isSaving ? 'Saving...' : 'Save to Record'}</span>
-                        </button>
+                        <>
+                            <button
+                                onClick={handleSaveReport}
+                                disabled={isSaving}
+                                className="px-4 py-2.5 bg-emerald-600 text-white font-medium rounded-xl shadow-md shadow-emerald-200 hover:bg-emerald-700 disabled:opacity-50 transition-all active:scale-95 flex items-center space-x-2"
+                            >
+                                {isSaving ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                ) : (
+                                    <Save size={16} />
+                                )}
+                                <span>{isSaving ? 'Saving...' : 'Save Record'}</span>
+                            </button>
+
+                            <button
+                                onClick={() => handleDownload(soapData)}
+                                disabled={isSaving}
+                                className="px-4 py-2.5 bg-white text-emerald-700 font-medium rounded-xl border border-emerald-200 shadow-sm hover:bg-emerald-50 disabled:opacity-50 transition-all active:scale-95 flex items-center space-x-2"
+                            >
+                                <Download size={16} />
+                                <span>Save & Download</span>
+                            </button>
+                        </>
                     )}
                 </div>
             </div>
 
-            {/* Studio Canvas - 3-Column Layout */}
-            <div className="flex-1 overflow-hidden flex">
+            {/* Studio Canvas - 3-Column Layout with Mobile Tabs */}
+            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row relative">
+
+                {/* Mobile Tab Navigation */}
+                <div className="lg:hidden flex border-b border-slate-200 bg-white shrink-0">
+                    <button
+                        onClick={() => setMobileTab('history')}
+                        className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider ${mobileTab === 'history' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50' : 'text-slate-500'}`}
+                    >
+                        History
+                    </button>
+                    <button
+                        onClick={() => setMobileTab('transcript')}
+                        className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider ${mobileTab === 'transcript' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50' : 'text-slate-500'}`}
+                    >
+                        Transcript
+                    </button>
+                    <button
+                        onClick={() => setMobileTab('output')}
+                        className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider ${mobileTab === 'output' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50' : 'text-slate-500'}`}
+                    >
+                        Output
+                    </button>
+                </div>
+
                 {/* Column 1: Assessment History (20%) */}
-                <div className="w-[20%] border-r border-slate-200 bg-slate-50/50 flex flex-col">
-                    <div className="px-6 py-3 bg-slate-100/80 border-b border-slate-200 flex items-center">
+                <div className={`${mobileTab === 'history' ? 'flex w-full' : 'hidden'} lg:flex lg:w-[20%] border-r border-slate-200 bg-slate-50/50 flex-col h-full overflow-hidden`}>
+                    <div className="px-6 py-3 bg-slate-100/80 border-b border-slate-200 flex items-center shrink-0">
                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center">
                             <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mr-2"></span>
                             Report History
@@ -231,10 +302,12 @@ const AssessmentStudio = ({
                                 <button
                                     key={item.id || idx}
                                     onClick={() => {
+                                        console.log("Selected History Item:", item);
                                         setSoapData(item.content);
+                                        setSelectedHistoryInfo(item);
                                         setAnalysisCount(prev => prev + 1);
                                     }}
-                                    className={`w-full text-left p-3 rounded-xl border transition-all hover:shadow-sm ${JSON.stringify(soapData) === JSON.stringify(item.content)
+                                    className={`w-full text-left p-3 rounded-xl border transition-all hover:shadow-sm cursor-pointer ${(selectedHistoryInfo && (selectedHistoryInfo.id === item.id || selectedHistoryInfo.created_at === item.created_at))
                                         ? 'bg-white border-indigo-200 ring-2 ring-indigo-500/10 shadow-sm shadow-indigo-100'
                                         : 'bg-white/50 border-slate-200 opacity-60 hover:opacity-100'
                                         }`}
@@ -252,8 +325,8 @@ const AssessmentStudio = ({
                 </div>
 
                 {/* Column 2: Transcript & Notes (35%) */}
-                <div className="w-[35%] border-r border-slate-200 bg-white flex flex-col relative z-10">
-                    <div className="px-6 py-3 bg-slate-50/80 backdrop-blur-sm border-b border-slate-100 flex items-center">
+                <div className={`${mobileTab === 'transcript' ? 'flex w-full' : 'hidden'} lg:flex lg:w-[35%] border-r border-slate-200 bg-white flex-col relative z-10 h-full overflow-hidden`}>
+                    <div className="px-6 py-3 bg-slate-50/80 backdrop-blur-sm border-b border-slate-100 flex items-center shrink-0">
                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center">
                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-2"></span>
                             Source Transcript
@@ -280,8 +353,8 @@ const AssessmentStudio = ({
                 </div>
 
                 {/* Column 3: Clinical Output (45%) */}
-                <div className="flex-1 flex flex-col bg-slate-100/30 overflow-hidden">
-                    <div className="px-6 py-3 bg-white/80 backdrop-blur-sm border-b border-slate-200 flex items-center">
+                <div className={`${mobileTab === 'output' ? 'flex w-full' : 'hidden'} lg:flex lg:flex-1 flex-col bg-slate-100/30 overflow-hidden h-full`}>
+                    <div className="px-6 py-3 bg-white/80 backdrop-blur-sm border-b border-slate-200 flex items-center shrink-0">
                         <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest flex items-center">
                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mr-2 animate-pulse"></span>
                             Clinical Output
@@ -295,6 +368,7 @@ const AssessmentStudio = ({
                                     key={analysisCount}
                                     initialData={soapData}
                                     onDownload={handleDownload}
+                                    onDownloadOnly={handleDownloadOnly}
                                     onChange={(newData) => setSoapData(newData)}
                                 />
                             </div>

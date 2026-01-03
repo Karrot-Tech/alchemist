@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { SignedIn, SignedOut, RedirectToSignIn, useAuth } from "@clerk/clerk-react";
 import Layout from './components/Layout';
+import { TranscriptionProvider } from './context/TranscriptionContext';
 import Dashboard from './pages/Dashboard';
 import NewSession from './pages/NewSession';
 import TranscriptLibrary from './pages/TranscriptLibrary';
 import AssessmentStudio from './pages/AssessmentStudio';
 import TemplateManager from './pages/TemplateManager';
 import PatientManager from './pages/PatientManager';
+import DraftsView from './pages/DraftsView';
 import Settings from './pages/Settings';
 import LandingPage from './pages/LandingPage';
 
@@ -17,7 +19,9 @@ function App() {
   const [activeTab, setActiveTab] = useState('ingest');
   const [appMode, setAppMode] = useState('dashboard');
   const [transcriptData, setTranscriptData] = useState(null);
+  const [currentSessionData, setCurrentSessionData] = useState(null); // For resuming drafts
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [libraryParams, setLibraryParams] = useState(null);
 
   const { getToken, isLoaded, isSignedIn } = useAuth();
 
@@ -45,7 +49,15 @@ function App() {
 
       // PROFOUND FIX: Only intercept requests to our backend (/api).
       // Otherwise we deadlock Clerk's own loading requests which uses fetch!
-      if (url.startsWith('/api') || url.startsWith('http://localhost:3000')) {
+      // Also strictly include other backend routes that are not prefixed with /api
+      const isBackendRoute = url.startsWith('/api') ||
+        url.startsWith('/transcribe') ||
+        url.startsWith('/assess-soap') ||
+        url.startsWith('/validate') ||
+        url.startsWith('/generate-document') ||
+        url.startsWith('http://localhost:3000');
+
+      if (isBackendRoute) {
         try {
           const token = await getToken();
           if (token) {
@@ -120,9 +132,29 @@ function App() {
     }
   };
 
-  const handleNavigate = (tab) => {
+  const resumeSession = async (t) => {
+    // Navigate to 'ingest' (NewSession) with pre-filled data
+    setCurrentSessionData({
+      content: t.content,
+      audio_url: t.audio_url,
+      patient_name: t.patient_name === 'Draft Patient' ? '' : t.patient_name,
+      patient_id: t.patient_id,
+      date: t.date,
+      notes: t.notes
+    });
+    handleNavigate('ingest');
+  };
+
+
+  const handleNavigate = (tab, params = null) => {
     setActiveTab(tab);
-    setAppMode(tab); // Keep appMode in sync if it's still used elsewhere
+    setAppMode(tab);
+    if (tab === 'library' && params) {
+      setLibraryParams(params);
+    }
+    if (tab === 'assessment' && params?.transcriptId) {
+      startAssessment({ id: params.transcriptId });
+    }
   };
 
   return (
@@ -131,27 +163,41 @@ function App() {
         <LandingPage />
       </SignedOut>
       <SignedIn>
-        {showOnboarding && <OnboardingTour onComplete={handleOnboardingComplete} />}
-        <Layout activeTab={activeTab} onNavigate={handleNavigate}>
-          {appMode === 'dashboard' && <Dashboard onNavigate={handleNavigate} />}
+        <TranscriptionProvider>
+          {showOnboarding && <OnboardingTour onComplete={handleOnboardingComplete} />}
+          <Layout activeTab={activeTab} onNavigate={handleNavigate}>
+            {appMode === 'dashboard' && <Dashboard onNavigate={handleNavigate} />}
 
-          {appMode === 'ingest' && <NewSession onNavigate={handleNavigate} />}
+            {appMode === 'ingest' && (
+              <NewSession
+                onNavigate={handleNavigate}
+                initialSessionData={currentSessionData}
+              />
+            )}
 
-          {appMode === 'library' && <TranscriptLibrary onSelectTranscript={startAssessment} />}
+            {appMode === 'drafts' && <DraftsView onSelectTranscript={resumeSession} />}
 
-          {appMode === 'assessment' && (
-            <AssessmentStudio
-              transcriptData={transcriptData}
-              onNavigate={handleNavigate}
-            />
-          )}
+            {appMode === 'library' && (
+              <TranscriptLibrary
+                onSelectTranscript={startAssessment}
+                initialPatientId={libraryParams?.patientId}
+              />
+            )}
 
-          {appMode === 'templates' && <TemplateManager />}
+            {appMode === 'assessment' && (
+              <AssessmentStudio
+                transcriptData={transcriptData}
+                onNavigate={handleNavigate}
+              />
+            )}
 
-          {appMode === 'patients' && <PatientManager />}
+            {appMode === 'templates' && <TemplateManager />}
 
-          {appMode === 'settings' && <Settings />}
-        </Layout>
+            {appMode === 'patients' && <PatientManager />}
+
+            {appMode === 'settings' && <Settings />}
+          </Layout>
+        </TranscriptionProvider>
       </SignedIn>
     </>
   );

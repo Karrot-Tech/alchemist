@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Sparkles } from 'lucide-react';
 
 const DocGenerator = ({ transcript }) => {
     const [notes, setNotes] = useState("Focus on the patient's reported symptoms regarding mobility and their current medication list."); // Default from spec
@@ -73,10 +74,14 @@ const DocGenerator = ({ transcript }) => {
             <button
                 onClick={handleGenerate}
                 disabled={!transcript || isGenerating}
-                className={`py-2 px-4 rounded-md text-white font-medium transition-colors w-full
+                className={`py-2 px-4 rounded-md text-white font-medium transition-colors w-full flex items-center justify-center gap-2
             ${!transcript || isGenerating ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
             >
-                {isGenerating ? 'Generating Document...' : 'Generate & Download Report'}
+                {isGenerating ? (
+                    <>Generating Document...</>
+                ) : (
+                    <><Sparkles size={16} /> Generate & Download Report</>
+                )}
             </button>
         </div>
     );

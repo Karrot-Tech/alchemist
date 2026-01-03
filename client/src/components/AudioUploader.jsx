@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, Upload, Square, Play, Pause, FileAudio, AlertCircle, X } from 'lucide-react';
+import { Mic, Upload, Square, Play, Pause, FileAudio, AlertCircle, X, Download, Sparkles } from 'lucide-react';
 
-const AudioUploader = ({ onTranscriptionComplete }) => {
+const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
     const [mode, setMode] = useState('upload'); // 'upload' | 'record'
     const [file, setFile] = useState(null);
     const [error, setError] = useState('');
@@ -171,6 +171,18 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    const handleDownloadRecording = () => {
+        if (!audioBlob) return;
+        const url = URL.createObjectURL(audioBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `recording_${new Date().toISOString().split('T')[0]}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    };
+
     const handleUpload = async () => {
         if (!file) {
             setError('Please select a file or record audio first.');
@@ -184,33 +196,65 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
             setIsPreviewPlaying(false);
         }
 
+        if (onUploadStart) {
+            setIsProcessing(true);
+            try {
+                // Delegate to parent (Context approach)
+                await onUploadStart(file);
+                // Keep isProcessing=true to show "Transcribing..."/Greyed out
+                // or we could change the label if we want, but this satisfies "grey out and show spinner"
+            } catch (err) {
+                console.error(err);
+                setError(err.message);
+                setIsProcessing(false);
+            }
+            return;
+        }
+
         setIsProcessing(true);
         setError('');
         const formData = new FormData();
         formData.append('audio', file);
 
         try {
-            const response = await fetch('/transcribe', {
-                method: 'POST',
-                body: formData,
-            });
+            // Step 1: Upload to Gemini (via Server)
+            const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+            if (!uploadRes.ok) {
+                const text = await uploadRes.text();
+                throw new Error("Upload failed: " + text);
+            }
+            const { gemini_file_name, gemini_file_uri, audioUrl } = await uploadRes.json();
 
-            if (!response.ok) {
-                let errorMessage = 'Upload failed';
-                const text = await response.text();
-                try {
-                    const err = JSON.parse(text);
-                    errorMessage = err.error || errorMessage;
-                } catch (e) {
-                    if (text) errorMessage = text;
-                }
-                throw new Error(errorMessage);
+            // Step 2: Poll for Processing Status
+            let state = "PROCESSING";
+            while (state === "PROCESSING") {
+                // Wait 2s
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                const statusRes = await fetch(`/api/status?name=${encodeURIComponent(gemini_file_name)}`);
+                if (!statusRes.ok) throw new Error("Failed to check processing status");
+                const statusData = await statusRes.json();
+                state = statusData.state;
+
+                if (state === "FAILED") throw new Error("Audio processing failed by AI provider.");
             }
 
-            const data = await response.json();
+            // Step 3: Generate Transcript
+            const genRes = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    file_uri: gemini_file_uri,
+                    mime_type: file.type || "audio/mp3" // Default to mp3 if blob type missing
+                })
+            });
+
+            if (!genRes.ok) throw new Error("Transcript generation failed");
+            const genData = await genRes.json();
+
             onTranscriptionComplete({
-                transcript: data.transcript,
-                audioUrl: data.audioUrl
+                transcript: genData.transcript,
+                audioUrl: audioUrl
             });
             setFile(null);
             setAudioBlob(null);
@@ -360,6 +404,13 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
                                                 <><Play size={18} fill="currentColor" /> Preview</>
                                             )}
                                         </button>
+                                        <button
+                                            onClick={handleDownloadRecording}
+                                            className="px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold flex items-center gap-2 transition-all border border-slate-700 text-slate-300"
+                                            title="Download Recording"
+                                        >
+                                            <Download size={18} />
+                                        </button>
                                     </div>
                                     {!isDurationValid && (
                                         <div className="mt-6 bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-lg flex items-center gap-2 text-red-200 text-sm">
@@ -405,7 +456,12 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
                                         <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                                         Transcribing...
                                     </>
-                                ) : mode === 'record' ? 'Transcribe Recording' : 'Transcribe File'}
+                                ) : (
+                                    <span className="flex items-center gap-2">
+                                        <Sparkles size={20} />
+                                        {mode === 'record' ? 'Transcribe Recording' : 'Transcribe File'}
+                                    </span>
+                                )}
                             </button>
                         )}
                     </div>

@@ -3,15 +3,38 @@ import AudioUploader from '../components/AudioUploader';
 import TranscriptViewer from '../components/TranscriptViewer';
 import { ArrowLeft, CheckCircle, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranscription } from '../context/TranscriptionContext';
 
-const NewSession = ({ onNavigate }) => {
-    const [transcriptData, setTranscriptData] = useState(null); // { text, audioUrl }
-    const [audioUrl, setAudioUrl] = useState(null);
-    const [patientName, setPatientName] = useState('');
-    const [selectedPatientId, setSelectedPatientId] = useState(null);
-    const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
-    const [doctorNotes, setDoctorNotes] = useState('');
+const NewSession = ({ onNavigate, initialSessionData }) => {
+    const [transcriptData, setTranscriptData] = useState(
+        initialSessionData ? { text: initialSessionData.content } : null
+    );
+    const [audioUrl, setAudioUrl] = useState(initialSessionData?.audio_url || null);
+    const [patientName, setPatientName] = useState(initialSessionData?.patient_name || '');
+    const [selectedPatientId, setSelectedPatientId] = useState(initialSessionData?.patient_id || null);
+    const [recordDate, setRecordDate] = useState(initialSessionData?.date || new Date().toISOString().split('T')[0]);
+    const [doctorNotes, setDoctorNotes] = useState(initialSessionData?.notes || '');
     const [saveStatus, setSaveStatus] = useState('idle');
+
+    // Context Integration
+    const { uploadAndTranscribe, jobs } = useTranscription();
+    const [currentJobId, setCurrentJobId] = useState(null);
+
+    // Watch for job completion if we are still here
+    useEffect(() => {
+        if (!currentJobId || !jobs[currentJobId]) return;
+
+        const job = jobs[currentJobId];
+        if (job.status === 'completed' && job.result) {
+            // Job finished while user is still on this screen!
+            // Auto-advance to the editor view
+            handleTranscriptionComplete({
+                transcript: job.result.transcript,
+                audioUrl: job.result.audioUrl
+            });
+            setCurrentJobId(null); // Stop watching
+        }
+    }, [jobs, currentJobId]);
 
     // Patient Selection State
     const [patients, setPatients] = useState([]);
@@ -23,6 +46,18 @@ const NewSession = ({ onNavigate }) => {
             .then(data => setPatients(data || []))
             .catch(err => console.error(err));
     }, []);
+
+    // Reset/Sync state if initialSessionData changes (e.g., loading a draft)
+    useEffect(() => {
+        if (initialSessionData) {
+            setTranscriptData({ text: initialSessionData.content });
+            setAudioUrl(initialSessionData.audio_url);
+            setPatientName(initialSessionData.patient_name || '');
+            setSelectedPatientId(initialSessionData.patient_id || null);
+            setRecordDate(initialSessionData.date || new Date().toISOString().split('T')[0]);
+            setDoctorNotes(initialSessionData.notes || '');
+        }
+    }, [initialSessionData]);
 
     const handlePatientChange = (e) => {
         const val = e.target.value;
@@ -41,9 +76,52 @@ const NewSession = ({ onNavigate }) => {
     };
 
     const handleTranscriptionComplete = (data) => {
+        // [LEGACY] This is only called if onUploadStart is NOT provided.
+        // But we will provide onUploadStart, so this might be dead code 
+        // unless we want to keep a local-only fallback.
         setTranscriptData({ text: data.transcript });
         setAudioUrl(data.audioUrl);
-        toast.success("Audio transcribed successfully.");
+        // Only show success toast if it wasn't a background auto-complete (context already toasts)
+        // But here we can't easily distinguish, so showing another toast is fine or we suppress it.
+        // For now, let's keep it simple.
+    };
+
+    const handleBackgroundUpload = async (file) => {
+        // 1. Ensure minimal metadata (Patient Name)
+        let finalPatientName = patientName;
+        let finalPatientId = selectedPatientId;
+
+        if (isCreatingPatient && patientName) {
+            // Must create patient first to have an ID, or just store as string
+            // For background job, we'll try to create it here quickly
+            try {
+                const patRes = await fetch('/api/patients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: patientName })
+                });
+                const patData = await patRes.json();
+                if (patData.id) {
+                    finalPatientId = patData.id;
+                    finalPatientName = patData.name;
+                    toast.success(`Created patient: ${finalPatientName}`);
+                }
+            } catch (err) {
+                console.warn("Failed to auto-create patient before upload:", err);
+            }
+        }
+
+        // 2. Start Job
+        toast.info("Upload started in background. You can stay here or navigate away.");
+
+        // Fire & Forget but track ID
+        const jobId = await uploadAndTranscribe(file, {
+            patientName: finalPatientName || "Draft Patient",
+            patientId: finalPatientId,
+            date: recordDate,
+            doctorNotes
+        });
+        setCurrentJobId(jobId);
     };
 
     const handleSaveTranscript = async () => {
@@ -89,7 +167,7 @@ const NewSession = ({ onNavigate }) => {
                 setSaveStatus('success');
                 toast.success("Patient record saved to Library.");
                 setTimeout(() => {
-                    onNavigate('dashboard');
+                    onNavigate('library', { patientId: finalPatientId });
                 }, 1000);
             } else {
                 throw new Error(data.error || "Save failed");
@@ -108,14 +186,17 @@ const NewSession = ({ onNavigate }) => {
                     <ArrowLeft size={18} className="mr-2" />
                     Back to Dashboard
                 </button>
-                <h2 className="text-3xl font-bold tracking-tight text-slate-900">New Patient Session</h2>
+                <h2 className="text-3xl font-bold tracking-tight text-slate-900">Patient Sessions Transcript</h2>
                 <p className="text-slate-500 mt-2">Upload a recording or start a new dictation.</p>
             </div>
 
             {!transcriptData ? (
                 <div className="bg-white p-12 rounded-2xl shadow-sm border border-slate-200 text-center transition-all hover:shadow-md">
                     <div className="max-w-md mx-auto">
-                        <AudioUploader onTranscriptionComplete={handleTranscriptionComplete} />
+                        <AudioUploader
+                            onTranscriptionComplete={handleTranscriptionComplete}
+                            onUploadStart={handleBackgroundUpload}
+                        />
                     </div>
                 </div>
             ) : (

@@ -1,14 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, FileText, Calendar, User, ChevronRight, ArrowLeft, Headphones, ClipboardCheck } from 'lucide-react';
+import { Search, FileText, Calendar, User, ChevronRight, ArrowLeft, Headphones, ClipboardCheck, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
-const TranscriptLibrary = ({ onSelectTranscript }) => {
+const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
     const [patients, setPatients] = useState([]);
     const [transcripts, setTranscripts] = useState([]);
-    const [selectedPatientId, setSelectedPatientId] = useState(null);
+    const [selectedPatientId, setSelectedPatientId] = useState(initialPatientId || null);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Update selection if prop changes
+    useEffect(() => {
+        if (initialPatientId) setSelectedPatientId(initialPatientId);
+    }, [initialPatientId]);
 
     useEffect(() => {
         Promise.all([
@@ -20,7 +25,7 @@ const TranscriptLibrary = ({ onSelectTranscript }) => {
             setLoading(false);
         }).catch(err => {
             console.error(err);
-            toast.error("Failed to load records");
+            toast.error("Failed to load patient records");
             setLoading(false);
         });
     }, []);
@@ -38,13 +43,56 @@ const TranscriptLibrary = ({ onSelectTranscript }) => {
 
     const selectedPatient = patients.find(p => p.id === selectedPatientId);
 
+    const handleDownload = async (transcript) => {
+        try {
+            toast.info("Preparing download...");
+            // Fetch full transcript details to get the assessments array
+            const res = await fetch(`/api/transcripts/${transcript.id}`);
+            const fullData = await res.json();
+
+            if (!fullData || !fullData.assessments || fullData.assessments.length === 0) {
+                toast.error("No assessment report found to download.");
+                return;
+            }
+
+            // Get the latest assessment
+            const latestAssessment = fullData.assessments[0];
+            const finalData = latestAssessment.content;
+            const templateId = latestAssessment.template_id;
+
+            const genRes = await fetch('/generate-document', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    template_id: templateId,
+                    data: finalData
+                }),
+            });
+
+            if (!genRes.ok) throw new Error("Document generation failed");
+
+            const blob = await genRes.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${finalData.patient_name || 'Assessment'}_${new Date().toISOString().split('T')[0]}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            toast.success("Document downloaded.");
+        } catch (error) {
+            console.error(error);
+            toast.error("Download failed: " + error.message);
+        }
+    };
+
     return (
         <div className="flex h-full animate-fade-in text-slate-900">
             {/* Left Sidebar: Patient List */}
             {/* Logic: Hidden on mobile IF a patient is selected. Always visible on Desktop */}
             <div className={`w-full lg:w-80 border-r border-slate-200 bg-white flex flex-col ${selectedPatientId ? 'hidden lg:flex' : 'flex'}`}>
                 <div className="p-4 border-b border-slate-100">
-                    <h2 className="font-bold text-lg mb-4 text-slate-800">Records</h2>
+                    <h2 className="font-bold text-lg mb-4 text-slate-800">Consult Records</h2>
                     <div className="relative">
                         <Search size={16} className="absolute left-3 top-3 text-slate-400" />
                         <input
@@ -136,6 +184,17 @@ const TranscriptLibrary = ({ onSelectTranscript }) => {
                                                             <ClipboardCheck size={10} /> {t.assessment_count > 1 ? `${t.assessment_count} Reports` : 'Report'}
                                                         </span>
                                                     )}
+                                                    {t.assessment_count > 0 && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDownload(t);
+                                                            }}
+                                                            className="text-[10px] font-bold uppercase py-1 px-2 bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-md flex items-center gap-1 transition-colors border border-slate-200"
+                                                        >
+                                                            <Download size={10} /> Save
+                                                        </button>
+                                                    )}
                                                     <span className="text-xs font-bold px-2 py-1 bg-slate-100 rounded-md text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
                                                         View &rarr;
                                                     </span>
@@ -146,9 +205,9 @@ const TranscriptLibrary = ({ onSelectTranscript }) => {
                                             </p>
 
                                             {t.audio_url && (
-                                                <div className="mb-3 p-2 bg-slate-50 rounded-lg border border-slate-100 flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                                                <div className="mb-3 p-2 bg-slate-50 rounded-lg border border-slate-100 flex items-center gap-3" onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
                                                     <audio controls className="h-8 flex-1">
-                                                        <source src={t.audio_url} type="audio/webm" />
+                                                        <source src={t.audio_url} />
                                                         Your browser does not support the audio element.
                                                     </audio>
                                                 </div>

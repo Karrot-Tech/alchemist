@@ -12,6 +12,9 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const promptService = require('./services/promptService');
 const { loadPrompts } = require('./prompts/loader');
 const os = require('os');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
 const requireAuth = require('./middleware/auth');
 
 const PROMPTS = loadPrompts();
@@ -21,10 +24,29 @@ const getDefaultPrompt = (key) => PROMPTS.find(p => p.key === key)?.text || "";
 
 const app = express();
 
+
 // Global Middleware
-app.use(cors());
+app.use(helmet({
+    contentSecurityPolicy: false, // Too strict for dev/mixed content usually, enable carefully
+    crossOriginEmbedderPolicy: false
+}));
+app.use(compression());
+app.use(cors({
+    origin: process.env.CLIENT_URL || '*', // Best practice: restrict to client URL
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Rate Limiter (AI Endpoints)
+const aiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 50, // Limit each IP to 50 requests per windowMs
+    message: { error: "Too many AI requests, please try again later." }
+});
+app.use(['/api/generate', '/api/upload', '/assess-soap', '/validate', '/api/templates/analyze'], aiLimiter);
+
 
 // --- System Agents (Brains) Management ---
 const SYSTEM_AGENTS = {
@@ -200,20 +222,17 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Alchemist Server is running' });
 });
 
+
 // ---------------------------------------------------------
-// Endpoint A: Audio-to-Transcript (Protected)
+// Async Endpoint A: Upload (Protected)
 // ---------------------------------------------------------
-// Uploads require special handling with Clerk + Multer. 
-// Standard pattern: requireAuth runs first.
-app.post('/transcribe', requireAuth, upload.single('audio'), async (req, res) => {
+app.post('/api/upload', requireAuth, upload.single('audio'), async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ error: "No audio file uploaded" });
-        }
+        if (!req.file) return res.status(400).json({ error: "No audio file uploaded" });
 
-        console.log(`Processing upload: ${req.file.originalname}`);
+        console.log(`[Async] Processing upload: ${req.file.originalname}`);
 
-        // 1. Write to temp file (Gemini needs a path)
+        // 1. Write to temp file
         const tempFilePath = path.join(os.tmpdir(), req.file.originalname);
         fs.writeFileSync(tempFilePath, req.file.buffer);
 
@@ -229,23 +248,64 @@ app.post('/transcribe', requireAuth, upload.single('audio'), async (req, res) =>
             displayName: req.file.originalname,
         });
 
-        console.log(`Uploaded to Gemini: ${uploadResult.file.uri}`);
+        console.log(`[Async] Uploaded to Gemini: ${uploadResult.file.name}`);
 
-        // 3. Poll until processing is complete
-        let file = await fileManager.getFile(uploadResult.file.name);
-        while (file.state === "PROCESSING") {
-            console.log("Processing audio...");
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-            file = await fileManager.getFile(uploadResult.file.name);
+        // 3. Store permanent backup (Vercel Blob) - Async (don't await strictly if speed is key, but good to keep)
+        let permanentAudioUrl = null;
+        try {
+            if (process.env.BLOB_READ_WRITE_TOKEN) {
+                const blobFilename = `dictations/${Date.now()}-${req.file.originalname}`;
+                const blobResult = await put(blobFilename, req.file.buffer, {
+                    access: 'public',
+                    contentType: mimeType
+                });
+                permanentAudioUrl = blobResult.url;
+            }
+        } catch (blobErr) {
+            console.error("Blob Save Error:", blobErr);
         }
 
-        if (file.state === "FAILED") {
-            throw new Error("Audio processing failed by Gemini");
-        }
+        // Cleanup
+        if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
 
-        console.log(`Audio processed. File State: ${file.state}. Generating transcript...`);
+        res.json({
+            gemini_file_name: uploadResult.file.name,
+            gemini_file_uri: uploadResult.file.uri,
+            audio_url: permanentAudioUrl
+        });
 
-        // 4. Generate Transcript
+    } catch (error) {
+        console.error("Upload Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ---------------------------------------------------------
+// Async Endpoint B: Check Status (Protected)
+// ---------------------------------------------------------
+app.get('/api/status', requireAuth, async (req, res) => {
+    try {
+        const name = req.query.name;
+        if (!name) return res.status(400).json({ error: "Missing name parameter" });
+
+        const file = await fileManager.getFile(name);
+        res.json({ name: file.name, state: file.state });
+    } catch (error) {
+        console.error("Status Check Error:", error);
+        res.status(500).json({ error: "Failed to check status" });
+    }
+});
+
+// ---------------------------------------------------------
+// Async Endpoint C: Generate (Protected)
+// ---------------------------------------------------------
+app.post('/api/generate', requireAuth, async (req, res) => {
+    try {
+        const { file_uri, mime_type } = req.body;
+        if (!file_uri) return res.status(400).json({ error: "No file URI provided" });
+
+        console.log(`[Async] Generating transcript for: ${file_uri}`);
+
         const modelName = process.env.GEMINI_MODEL_TRANSCRIBE || "gemini-2.0-flash";
         const model = genAI.getGenerativeModel({ model: modelName });
 
@@ -256,44 +316,27 @@ app.post('/transcribe', requireAuth, upload.single('audio'), async (req, res) =>
             promptText,
             {
                 fileData: {
-                    fileUri: uploadResult.file.uri,
-                    mimeType: uploadResult.file.mimeType,
+                    fileUri: file_uri,
+                    mimeType: mime_type || "audio/mp3",
                 },
             },
         ]);
 
         const transcriptText = result.response.text();
-
-        // 5. [NEW] Store audio permanently in Vercel Blob
-        let permanentAudioUrl = null;
-        try {
-            const blobFilename = `dictations/${Date.now()}-${req.file.originalname}`;
-            const blobResult = await put(blobFilename, req.file.buffer, {
-                access: 'public',
-                contentType: mimeType
-            });
-            permanentAudioUrl = blobResult.url;
-            console.log(`Audio saved permanently: ${permanentAudioUrl}`);
-        } catch (blobErr) {
-            console.error("Failed to save audio to Blob:", blobErr);
-            // Don't fail the whole request if only blob storage fails
-        }
-
-        // Cleanup: Delete local temp file
-        if (fs.existsSync(tempFilePath)) {
-            fs.unlinkSync(tempFilePath);
-        }
-
-        res.json({
-            transcript: transcriptText,
-            audioUrl: permanentAudioUrl
-        });
+        res.json({ transcript: transcriptText });
 
     } catch (error) {
-        console.error("Transcribe Error:", error);
+        console.error("Generate Error:", error);
         res.status(500).json({ error: error.message });
     }
 });
+
+// Legacy Wrapper (Attempts to use Async flow internally or just fails for large files)
+// Kept for backward compat if client isn't updated immediately, but effectively deprecated
+app.post('/transcribe', requireAuth, upload.single('audio'), async (req, res) => {
+    return res.status(400).json({ error: "This endpoint is deprecated. Please refresh the page to use the new Async Uploader." });
+});
+
 
 // ---------------------------------------------------------
 // Endpoint B: Validation (Protected)
@@ -707,9 +750,12 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
         }));
 
         // Calculate simplified stats
+        const drafts = transcripts.filter(t => !t.patient_id || t.patient_name === 'Draft Patient');
+
         const stats = {
             total_patients: patients.length,
-            total_sessions: transcripts.length,
+            total_drafts: drafts.length,
+            total_records: transcripts.length - drafts.length,
             total_templates: templates.length
         };
 

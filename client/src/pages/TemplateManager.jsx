@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Upload, FileText, CheckCircle, Pencil, Trash2 } from 'lucide-react';
+import { Upload, FileText, CheckCircle, Pencil, Trash2, Sparkles } from 'lucide-react';
 
 function TemplateManager() {
     const [templates, setTemplates] = useState([]);
@@ -30,7 +30,7 @@ function TemplateManager() {
             if (res.ok) {
                 setTemplates(data || []);
             } else {
-                toast.error("Failed to load templates");
+                toast.error("Failed to load clinical templates");
             }
         } catch (err) {
             console.error(err);
@@ -102,7 +102,7 @@ function TemplateManager() {
 
     const handleSave = async () => {
         if (!name || !promptText || !schemaJson) return toast.error("Missing required fields");
-        if (!editingTemplate && !file) return toast.error("Please select a template file");
+        if (!editingTemplate && !file) return toast.error("Please select a clinical template file");
 
         try {
             JSON.parse(schemaJson); // Validate JSON
@@ -142,7 +142,7 @@ function TemplateManager() {
             const data = await res.json();
 
             if (res.ok) {
-                toast.success(editingTemplate ? "Template updated" : "Template saved");
+                toast.success(editingTemplate ? "Clinical Template updated" : "Clinical Template saved");
                 fetchTemplates();
                 resetForm();
             } else {
@@ -184,12 +184,12 @@ function TemplateManager() {
 
     const handleDelete = async () => {
         if (!editingTemplate) return;
-        if (!confirm("Are you sure you want to delete this template? This cannot be undone.")) return;
+        if (!confirm("Are you sure you want to delete this clinical template? This cannot be undone.")) return;
 
         try {
             const res = await fetch(`/api/templates/${editingTemplate.id}`, { method: 'DELETE' });
             if (res.ok) {
-                toast.success("Template deleted");
+                toast.success("Clinical Template deleted");
                 fetchTemplates();
                 resetForm();
             } else {
@@ -207,8 +207,8 @@ function TemplateManager() {
             {/* Header */}
             <div className="flex justify-between items-center mb-10">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 mb-2">Template Manager</h1>
-                    <p className="text-slate-500">Upload DOCX templates to define assessments.</p>
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2">Clinical Template Manager</h1>
+                    <p className="text-slate-500">Upload DOCX clinical templates to define assessments.</p>
                 </div>
                 {editingTemplate && (
                     <button onClick={resetForm} className="text-slate-500 hover:text-slate-800 font-medium px-4 py-2 hover:bg-slate-100 rounded-lg transition-all">
@@ -220,11 +220,11 @@ function TemplateManager() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* List: Existing Templates (Now First/Left) */}
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit order-first">
-                    <h2 className="font-bold text-lg mb-6 text-slate-800">Existing Templates</h2>
+                    <h2 className="font-bold text-lg mb-6 text-slate-800">Existing Clinical Templates</h2>
                     {loading ? (
                         <p className="text-slate-400">Loading...</p>
                     ) : templates.length === 0 ? (
-                        <p className="text-slate-400">No templates found.</p>
+                        <p className="text-slate-400">No clinical templates found.</p>
                     ) : (
                         <div className="space-y-3">
                             {templates.map(t => (
@@ -241,7 +241,7 @@ function TemplateManager() {
                                         <button
                                             onClick={() => startEdit(t)}
                                             className="text-slate-400 hover:text-indigo-600 p-2 rounded-lg hover:bg-indigo-50 transition-all"
-                                            title="Edit Template"
+                                            title="Edit Clinical Template"
                                         >
                                             <Pencil size={16} />
                                         </button>
@@ -259,7 +259,7 @@ function TemplateManager() {
 
                         {!editingTemplate ? (
                             <div className="mb-6">
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Select Template File (.docx)</label>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Select Clinical Template File (.docx)</label>
                                 <div className="flex gap-2">
                                     <input
                                         id="file-upload"
@@ -284,9 +284,13 @@ function TemplateManager() {
                                     <button
                                         onClick={handleAnalyze}
                                         disabled={analyzing || !file}
-                                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-2"
                                     >
-                                        {analyzing ? 'Analyzing...' : 'Analyze'}
+                                        {analyzing ? (
+                                            <>Analyzing...</>
+                                        ) : (
+                                            <><Sparkles size={16} /> Analyze</>
+                                        )}
                                     </button>
                                 </div>
                             </div>
@@ -309,7 +313,7 @@ function TemplateManager() {
                                     disabled={refreshing}
                                     className="text-slate-500 hover:text-indigo-600 text-sm font-medium flex items-center whitespace-nowrap"
                                 >
-                                    {refreshing ? 'Refreshing...' : '↻ Re-Analyze File'}
+                                    {refreshing ? 'Refreshing...' : <><Sparkles size={14} className="mr-1" /> Re-Analyze File</>}
                                 </button>
                             </div>
                         )}
@@ -350,13 +354,13 @@ function TemplateManager() {
                                     onClick={handleSave}
                                     className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 transition-all"
                                 >
-                                    {editingTemplate ? 'Update Template' : 'Save Template'}
+                                    {editingTemplate ? 'Update Clinical Template' : 'Save Clinical Template'}
                                 </button>
                                 {editingTemplate && (
                                     <button
                                         onClick={handleDelete}
                                         className="px-4 py-3 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl border border-red-200 transition-all"
-                                        title="Delete Template"
+                                        title="Delete Clinical Template"
                                     >
                                         <Trash2 size={20} />
                                     </button>

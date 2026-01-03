@@ -1,5 +1,6 @@
 {
     "outputDirectory": "client/dist",
+    "maxDuration": 60,
     "rewrites": [
         {
             "source": "/ping",
@@ -32,7 +33,8 @@
     ],
     "functions": {
         "api/index.js": {
-            "includeFiles": "{server/**,client/dist/**}"
+            "includeFiles": "{server/**,client/dist/**}",
+            "maxDuration": 60
         }
     }
 }

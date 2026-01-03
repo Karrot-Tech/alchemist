@@ -1,7 +1,7 @@
 import React from 'react';
 import { Toaster } from 'sonner';
 import { useUser, useClerk } from '@clerk/clerk-react';
-import { Home, FileText, Users, Settings, LogOut, ChevronRight, Menu, X, Cpu, PlusCircle } from 'lucide-react';
+import { Home, FileText, Users, Settings, LogOut, ChevronRight, Menu, X, Clock, PlusCircle, FolderOpen, Inbox } from 'lucide-react';
 
 const Layout = ({ children, activeTab, onNavigate }) => {
     const { user } = useUser();
@@ -10,10 +10,11 @@ const Layout = ({ children, activeTab, onNavigate }) => {
 
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: Home },
-        { id: 'library', label: 'Records', icon: FileText },
-        { id: 'patients', label: 'Patients', icon: Users },
-        { id: 'templates', label: 'Templates', icon: Settings },
-        { id: 'settings', label: 'Settings', icon: Cpu },
+        { id: 'drafts', label: 'Sessions Inbox', icon: Inbox },
+        { id: 'library', label: 'Consult Records', icon: FolderOpen },
+        { id: 'patients', label: 'Patient Directory', icon: Users },
+        { id: 'templates', label: 'Clinical Template', icon: FileText },
+        { id: 'settings', label: 'Settings', icon: Settings },
     ];
 
     const handleNavigate = (id) => {
@@ -23,7 +24,7 @@ const Layout = ({ children, activeTab, onNavigate }) => {
 
     return (
         <div className="flex h-screen bg-slate-50 w-full overflow-hidden text-slate-900">
-            <Toaster position="top-right" richColors closeButton />
+            <Toaster position="top-center" richColors closeButton />
 
             {/* Mobile Header */}
             <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 z-30">
@@ -34,8 +35,10 @@ const Layout = ({ children, activeTab, onNavigate }) => {
                     >
                         {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
-                    <img src="/favicon.png" alt="Logo" className="h-8 w-8 mr-3 rounded-lg" />
-                    <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-cyan-600 to-indigo-600 bg-clip-text text-transparent">Alchemist AI</span>
+                    <div className="flex items-center cursor-pointer" onClick={() => handleNavigate('dashboard')}>
+                        <img src="/favicon.png" alt="Logo" className="h-8 w-8 mr-3 rounded-lg" />
+                        <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-cyan-600 to-indigo-600 bg-clip-text text-transparent">Alchemist AI</span>
+                    </div>
                 </div>
             </header>
 
@@ -68,16 +71,6 @@ const Layout = ({ children, activeTab, onNavigate }) => {
 
                 {/* Navigation */}
                 <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-
-                    <div className="mb-6">
-                        <button
-                            onClick={() => handleNavigate('ingest')}
-                            className="w-full flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-xl shadow-md shadow-indigo-200 transition-all active:scale-95"
-                        >
-                            <PlusCircle size={18} />
-                            <span className="font-semibold text-sm">New Session</span>
-                        </button>
-                    </div>
 
                     <div className="space-y-1">
                         {navItems.map((item) => {

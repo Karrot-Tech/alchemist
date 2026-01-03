@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Sparkles } from 'lucide-react';
 
 const TranscriptViewer = ({ transcript, onTranscriptChange, onValidationReceived }) => {
     const [isValidating, setIsValidating] = useState(false);
@@ -26,7 +27,21 @@ const TranscriptViewer = ({ transcript, onTranscriptChange, onValidationReceived
 
     return (
         <div className="p-6 bg-white rounded-lg shadow-md border border-gray-200 mt-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">2. Transcript & Validation</h2>
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">2. Transcript & Validation</h2>
+                <button
+                    onClick={handleValidate}
+                    disabled={!transcript || isValidating}
+                    className={`py-2 px-4 rounded-md text-white font-bold text-sm transition-colors flex items-center gap-2
+                    ${!transcript || isValidating ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'}`}
+                >
+                    {isValidating ? (
+                        <>Analyzing...</>
+                    ) : (
+                        <><Sparkles size={16} /> Validate Transcript</>
+                    )}
+                </button>
+            </div>
 
             <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Transcript Text (Editable)</label>
@@ -37,15 +52,6 @@ const TranscriptViewer = ({ transcript, onTranscriptChange, onValidationReceived
                     placeholder="Transcript will appear here..."
                 />
             </div>
-
-            <button
-                onClick={handleValidate}
-                disabled={!transcript || isValidating}
-                className={`py-2 px-4 rounded-md text-white font-medium transition-colors
-            ${!transcript || isValidating ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'}`}
-            >
-                {isValidating ? 'Analyzing Quality...' : 'Validate Transcript'}
-            </button>
 
             {validationResult && (
                 <div className="mt-6 p-4 bg-gray-50 rounded-md border border-gray-200">

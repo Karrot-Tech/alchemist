@@ -12,16 +12,16 @@ const OnboardingTour = ({ onComplete }) => {
             color: "indigo"
         },
         {
+            title: "Define Your Style",
+            body: "Provide your Clinical Templates and AI will help you create session reports.",
+            icon: <FileText className="w-16 h-16 text-emerald-500 mb-4" />,
+            color: "emerald"
+        },
+        {
             title: "Capture & Analyze",
             body: "Start a 'New Session' to record patient interactions or upload existing audio files. We handle the transcription and analysis.",
             icon: <Mic className="w-16 h-16 text-indigo-500 mb-4" />,
             color: "blue"
-        },
-        {
-            title: "Define Your Style",
-            body: "Upload your own .docx templates in the 'Template Manager'. Teach the AI to follow your exact formatting rules.",
-            icon: <FileText className="w-16 h-16 text-emerald-500 mb-4" />,
-            color: "emerald"
         },
         {
             title: "Your Lab Awaits",
