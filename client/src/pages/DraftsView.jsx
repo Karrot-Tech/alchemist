@@ -27,7 +27,7 @@ const DraftsView = () => {
                 toast.error("Failed to load drafts");
                 setLoading(false);
             });
-    }, []);
+    }, [authFetch]);
 
     const filteredDrafts = transcripts.filter(t =>
         (t.content && t.content.toLowerCase().includes(searchTerm.toLowerCase())) ||

@@ -27,20 +27,25 @@ const PatientManager = () => {
     };
 
     useEffect(() => {
-        fetchPatients();
-    }, []);
-
-    const fetchPatients = async () => {
-        try {
-            const res = await authFetch('/api/patients');
-            const data = await res.json();
-            setPatients(data || []);
-            setLoading(false);
-        } catch (err) {
-            toast.error("Failed to load patients");
-            setLoading(false);
-        }
-    };
+        let active = true;
+        const loadPatients = async () => {
+            try {
+                const res = await authFetch('/api/patients');
+                const data = await res.json();
+                if (active) {
+                    setPatients(data || []);
+                    setLoading(false);
+                }
+            } catch {
+                if (active) {
+                    toast.error("Failed to load patients");
+                    setLoading(false);
+                }
+            }
+        };
+        loadPatients();
+        return () => { active = false; };
+    }, [authFetch]);
 
     const startEdit = (p) => {
         setEditingPatient(p);

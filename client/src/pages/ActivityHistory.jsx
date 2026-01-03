@@ -13,7 +13,7 @@ const ActivityHistory = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
-    const LIMIT = 20;
+
 
     // Debounce search term
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -24,23 +24,15 @@ const ActivityHistory = () => {
         return () => clearTimeout(timer);
     }, [searchTerm]);
 
-    useEffect(() => {
-        // Reset list when search changes
-        setPage(1);
-        setSessions([]);
-        setHasMore(true);
-        fetchSessions(1, debouncedSearch, true);
-    }, [debouncedSearch]);
-
-    const fetchSessions = async (pageNum, search, isReset = false) => {
+    const fetchSessions = React.useCallback(async (pageNum, search, isReset = false) => {
         if (isReset) setLoading(true);
         else setLoadingMore(true);
 
         try {
             const params = new URLSearchParams({
                 page: pageNum,
-                limit: LIMIT,
-                offset: (pageNum - 1) * LIMIT,
+                limit: 20,
+                offset: (pageNum - 1) * 20,
                 lean: 'true' // Don't need full heavy content
             });
 
@@ -51,7 +43,7 @@ const ActivityHistory = () => {
 
             const data = await res.json();
 
-            if (data.length < LIMIT) {
+            if (data.length < 20) {
                 setHasMore(false);
             }
 
@@ -63,7 +55,15 @@ const ActivityHistory = () => {
             setLoading(false);
             setLoadingMore(false);
         }
-    };
+    }, [authFetch]);
+
+    useEffect(() => {
+        // Reset list when search changes
+        setPage(1);
+        setSessions([]);
+        setHasMore(true);
+        fetchSessions(1, debouncedSearch, true);
+    }, [debouncedSearch, fetchSessions]);
 
     const handleLoadMore = () => {
         const nextPage = page + 1;

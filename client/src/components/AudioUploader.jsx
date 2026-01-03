@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuthFetch } from '../hooks/useAuthFetch';
 import { Mic, Upload, Square, Play, Pause, FileAudio, AlertCircle, X, Download, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
+
+// Add CheckCircle icon locally if not imported
+const CheckCircle = ({ size, className }) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>;
 
 const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
     const authFetch = useAuthFetch();
@@ -78,7 +82,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
         ];
         try {
             return types.find(type => MediaRecorder.isTypeSupported(type)) || '';
-        } catch (e) {
+        } catch {
             return '';
         }
     };
@@ -243,10 +247,8 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
                 await onUploadStart(file);
                 // Keep isProcessing=true to show "Transcribing..."/Greyed out
                 // or we could change the label if we want, but this satisfies "grey out and show spinner"
-            } catch (err) {
-                console.error(err);
-                setError(err.message);
-                setIsProcessing(false);
+            } catch {
+                toast.error("Upload failed");
             }
             return;
         }
@@ -528,7 +530,6 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
         </div>
     );
 };
-// Add CheckCircle icon locally if not imported
-const CheckCircle = ({ size, className }) => <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>;
+
 
 export default AudioUploader;

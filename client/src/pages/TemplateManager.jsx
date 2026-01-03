@@ -17,14 +17,13 @@ function TemplateManager() {
     const [description, setDescription] = useState('');
     const [promptText, setPromptText] = useState('');
     const [schemaJson, setSchemaJson] = useState('{}');
-    const [filePath, setFilePath] = useState(null); // Server path
 
     // Edit State
     const [editingTemplate, setEditingTemplate] = useState(null);
     const saveSectionRef = React.useRef(null);
     const editorTopRef = React.useRef(null);
 
-    const fetchTemplates = async () => {
+    const fetchTemplates = React.useCallback(async () => {
         setLoading(true);
         try {
             const res = await authFetch('/api/templates');
@@ -40,11 +39,11 @@ function TemplateManager() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [authFetch]);
 
     useEffect(() => {
         fetchTemplates();
-    }, []);
+    }, [fetchTemplates]);
 
     const handleAnalyze = async () => {
         if (!file) return toast.error("Please select a file first");
@@ -59,7 +58,6 @@ function TemplateManager() {
             if (res.ok) {
                 setPromptText(data.prompt_suggestion);
                 setSchemaJson(JSON.stringify(data.schema_suggestion, null, 2));
-                setFilePath(data.file_path);
                 toast.success("Analysis complete. Please review and save below.");
                 // Smooth scroll to the save section
                 setTimeout(() => {
@@ -108,7 +106,7 @@ function TemplateManager() {
 
         try {
             JSON.parse(schemaJson); // Validate JSON
-        } catch (e) {
+        } catch {
             return toast.error("Invalid JSON Schema format");
         }
 
@@ -164,10 +162,9 @@ function TemplateManager() {
         try {
             const obj = JSON.parse(t.schema_json);
             setSchemaJson(JSON.stringify(obj, null, 2));
-        } catch (e) {
+        } catch {
             setSchemaJson(t.schema_json);
         }
-        setFilePath(t.file_path);
         setFile(null);
 
         // Scroll to editor
@@ -179,7 +176,7 @@ function TemplateManager() {
     const resetForm = () => {
         setEditingTemplate(null);
         setName(''); setDescription(''); setPromptText(''); setSchemaJson('{}');
-        setFile(null); setFilePath(null);
+        setFile(null);
         const fileInput = document.getElementById('file-upload');
         if (fileInput) fileInput.value = "";
     };

@@ -35,7 +35,7 @@ const TranscriptLibrary = () => {
             toast.error("Failed to load patient records");
             setLoading(false);
         });
-    }, []);
+    }, [authFetch]);
 
     // Filter patients based on search
     const filteredPatients = patients.filter(p =>

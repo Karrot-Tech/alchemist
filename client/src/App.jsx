@@ -1,5 +1,5 @@
+
 import React, { useState, useEffect } from 'react';
-import { toast } from 'sonner';
 import { SignedIn, SignedOut, RedirectToSignIn, useAuth } from "@clerk/clerk-react";
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -17,18 +17,13 @@ import LandingPage from './pages/LandingPage';
 import OnboardingTour from './components/OnboardingTour';
 
 function App() {
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem('alchemist_onboarding_completed');
+  });
+  const { isLoaded } = useAuth();
 
   // Onboarding Check
-  useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      const hasSeenOnboarding = localStorage.getItem('alchemist_onboarding_completed');
-      if (!hasSeenOnboarding) {
-        setShowOnboarding(true);
-      }
-    }
-  }, [isLoaded, isSignedIn]);
+
 
   const handleOnboardingComplete = () => {
     localStorage.setItem('alchemist_onboarding_completed', 'true');

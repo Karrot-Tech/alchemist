@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useAuthFetch } from '../hooks/useAuthFetch';
 import { toast } from 'sonner';
 
@@ -56,7 +57,7 @@ export const TranscriptionProvider = ({ children }) => {
             while (state === "PROCESSING") {
                 await new Promise(resolve => setTimeout(resolve, 2000));
 
-                const statusRes = await authFetch(`/api/status?name=${encodeURIComponent(gemini_file_name)}`);
+                const statusRes = await authFetch(`/ api / status ? name = ${encodeURIComponent(gemini_file_name)} `);
                 if (!statusRes.ok) throw new Error("Failed to check processing status");
                 const statusData = await statusRes.json();
                 state = statusData.state;
@@ -103,11 +104,11 @@ export const TranscriptionProvider = ({ children }) => {
         } catch (err) {
             console.error("Background job failed", err);
             updateJobStatus(jobId, 'error', null, err.message);
-            toast.error(`Transcription failed: ${err.message}`);
+            toast.error(`Transcription failed: ${err.message} `);
         }
 
         return jobId;
-    }, []);
+    }, [authFetch]);
 
     return (
         <TranscriptionContext.Provider value={{ jobs, uploadAndTranscribe }}>

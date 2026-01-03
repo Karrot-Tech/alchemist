@@ -60,7 +60,7 @@ const AssessmentStudio = () => {
                 navigate('/records'); // Fallback
             })
             .finally(() => setLoadingTranscript(false));
-    }, [id, navigate]);
+    }, [id, navigate, authFetch]);
 
     // Cleanup or reset when ID changes (though usually component remounts)
     useEffect(() => {
@@ -72,8 +72,8 @@ const AssessmentStudio = () => {
         authFetch('/api/templates')
             .then(res => res.json())
             .then(data => setTemplates(data))
-            .catch(err => toast.error("Failed to load templates."));
-    }, []);
+            .catch(() => toast.error("Failed to load templates."));
+    }, [authFetch]);
 
     const runAssessment = async () => {
         if (!transcriptData) return;

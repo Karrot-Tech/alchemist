@@ -30,7 +30,7 @@ const Dashboard = () => {
                 toast.error("Could not load dashboard stats");
                 setLoading(false);
             });
-    }, []);
+    }, [authFetch]);
 
     const formatDate = (dateString) => {
         if (!dateString) return '-';
@@ -184,7 +184,7 @@ const Dashboard = () => {
 };
 
 // New Unified Component
-const StatsActionCard = ({ title, count, label, icon, color, onClick }) => {
+const StatsActionCard = ({ count, label, icon, color, onClick }) => {
     const theme = {
         indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600', hover: 'hover:border-indigo-300 hover:shadow-indigo-100' },
         yellow: { bg: 'bg-yellow-50', text: 'text-yellow-600', hover: 'hover:border-yellow-300 hover:shadow-yellow-100' },

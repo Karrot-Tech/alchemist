@@ -11,6 +11,17 @@ const Settings = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
+    const loadAgent = React.useCallback(async (id) => {
+        try {
+            const res = await authFetch(`/api/system-prompts/${id}`);
+            const data = await res.json();
+            setSelectedAgent(data.id);
+            setPromptContent(data.content);
+        } catch {
+            toast.error("Failed to load prompt");
+        }
+    }, [authFetch]);
+
     useEffect(() => {
         authFetch('/api/system-prompts')
             .then(res => res.json())
@@ -19,19 +30,8 @@ const Settings = () => {
                 if (data.length > 0) loadAgent(data[0].id);
                 setLoading(false);
             })
-            .catch(err => toast.error("Failed to load agents"));
-    }, []);
-
-    const loadAgent = async (id) => {
-        try {
-            const res = await authFetch(`/api/system-prompts/${id}`);
-            const data = await res.json();
-            setSelectedAgent(data.id);
-            setPromptContent(data.content);
-        } catch (err) {
-            toast.error("Failed to load prompt");
-        }
-    };
+            .catch(() => toast.error("Failed to load agents"));
+    }, [authFetch, loadAgent]);
 
     const handleSave = async () => {
         if (!selectedAgent) return;
@@ -42,10 +42,10 @@ const Settings = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content: promptContent })
             });
-            if (res.ok) toast.success("Agent behavior tuned successfully.");
-            else toast.error("Failed to save.");
-        } catch (err) {
-            toast.error("Error saving");
+            if (res.ok) toast.success("System prompt updated");
+            else throw new Error("Failed");
+        } catch {
+            toast.error("Failed to save changes");
         } finally {
             setSaving(false);
         }

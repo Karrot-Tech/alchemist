@@ -39,7 +39,7 @@ const NewSession = () => {
             });
             setCurrentJobId(null); // Stop watching
         }
-    }, [jobs, currentJobId]);
+    }, [jobs, currentJobId, handleTranscriptionComplete]);
 
     // Patient Selection State
     const [patients, setPatients] = useState([]);
@@ -50,7 +50,7 @@ const NewSession = () => {
             .then(res => res.json())
             .then(data => setPatients(data || []))
             .catch(err => console.error(err));
-    }, []);
+    }, [authFetch]);
 
     // Load Draft if draftId is present
     useEffect(() => {
@@ -74,7 +74,7 @@ const NewSession = () => {
             }
         };
         loadDraft();
-    }, [draftId]);
+    }, [draftId, authFetch]);
 
     const handlePatientChange = (e) => {
         const val = e.target.value;
@@ -92,7 +92,7 @@ const NewSession = () => {
         }
     };
 
-    const handleTranscriptionComplete = (data) => {
+    const handleTranscriptionComplete = React.useCallback((data) => {
         // [LEGACY] This is only called if onUploadStart is NOT provided.
         // But we will provide onUploadStart, so this might be dead code 
         // unless we want to keep a local-only fallback.
@@ -101,7 +101,7 @@ const NewSession = () => {
         // Only show success toast if it wasn't a background auto-complete (context already toasts)
         // But here we can't easily distinguish, so showing another toast is fine or we suppress it.
         // For now, let's keep it simple.
-    };
+    }, []);
 
     const handleBackgroundUpload = async (file) => {
         // 1. Ensure minimal metadata (Patient Name)

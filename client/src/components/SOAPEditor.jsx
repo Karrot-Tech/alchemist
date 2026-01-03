@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Copy, Check, Save } from 'lucide-react';
 
-const SOAPEditor = ({ initialData, onDownload, onDownloadOnly, onChange }) => {
+const SOAPEditor = ({ initialData, onDownloadOnly, onChange }) => {
     const [formData, setFormData] = useState(initialData);
 
     useEffect(() => {
