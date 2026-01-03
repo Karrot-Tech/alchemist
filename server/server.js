@@ -12,6 +12,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const promptService = require('./services/promptService');
 const { loadPrompts } = require('./prompts/loader');
 const os = require('os');
+const requireAuth = require('./middleware/auth');
 
 const PROMPTS = loadPrompts();
 
@@ -19,6 +20,12 @@ const PROMPTS = loadPrompts();
 const getDefaultPrompt = (key) => PROMPTS.find(p => p.key === key)?.text || "";
 
 const app = express();
+
+// Global Middleware
+app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
 // --- System Agents (Brains) Management ---
 const SYSTEM_AGENTS = {
     'transcriber': { name: 'Transcriber Bot', file: 'transcribe_audio.md', desc: 'Converts raw audio to text.' },
@@ -27,11 +34,11 @@ const SYSTEM_AGENTS = {
     'architect': { name: 'Template Architect', file: 'analyze_template.md', desc: 'Analyzes DOCX templates for structure.' }
 };
 
-app.get('/api/system-prompts', (req, res) => {
+app.get('/api/system-prompts', requireAuth, (req, res) => {
     res.json(Object.entries(SYSTEM_AGENTS).map(([key, val]) => ({ id: key, ...val })));
 });
 
-app.get('/api/system-prompts/:id', async (req, res) => {
+app.get('/api/system-prompts/:id', requireAuth, async (req, res) => {
     const agent = SYSTEM_AGENTS[req.params.id];
     if (!agent) return res.status(404).json({ error: "Agent not found" });
 
@@ -43,7 +50,7 @@ app.get('/api/system-prompts/:id', async (req, res) => {
     }
 });
 
-app.put('/api/system-prompts/:id', async (req, res) => {
+app.put('/api/system-prompts/:id', requireAuth, async (req, res) => {
     const agent = SYSTEM_AGENTS[req.params.id];
     if (!agent) return res.status(404).json({ error: "Agent not found" });
 
@@ -61,10 +68,8 @@ const PORT = process.env.PORT || 3000;
 app.get('/ping', (req, res) => res.send('pong')); // DEBUG ROUTE
 
 
-// Middleware (Moved Up)
-const requireAuth = require('./middleware/auth');
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+// Middleware definitions
+
 
 // --- Patient Management Routes (Protected) ---
 app.get('/api/patients', requireAuth, async (req, res) => {
@@ -177,7 +182,7 @@ app.put('/api/transcripts/:id/assessment', requireAuth, async (req, res) => {
 });
 
 // (Middleware moved to top)
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// URLencoded moved up to global middleware block
 
 // Multer Memory Storage (for Vercel/Serverless)
 const upload = multer({ storage: multer.memoryStorage() });
