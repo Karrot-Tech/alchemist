@@ -120,6 +120,10 @@ const Layout = ({ children, activeTab, onNavigate }) => {
                         </div>
                         <LogOut size={16} className="text-slate-400 group-hover:text-red-500 transition-colors" />
                     </div>
+                    {/* Copyright */}
+                    <div className="mt-4 px-2 text-[10px] text-slate-300 font-medium text-center">
+                        © 2025 Karrot Tech. All rights reserved.
+                    </div>
                 </div>
             </aside>
 
