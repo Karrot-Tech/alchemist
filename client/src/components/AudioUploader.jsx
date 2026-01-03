@@ -25,7 +25,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
     const dataArrayRef = useRef(null);
     const animationFrameRef = useRef(null);
 
-    const MIN_DURATION_SECONDS = 120; // 2 minutes
+    const MIN_DURATION_SECONDS = 3; // Reduced from 120 for better user experience
 
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -66,6 +66,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
     };
 
     const getSupportedMimeType = () => {
+        if (typeof MediaRecorder === 'undefined') return '';
         const types = [
             'audio/mp4',      // Best for iOS/Safari
             'audio/aac',      // Good for iOS/Safari
@@ -73,41 +74,58 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
             'audio/ogg',
             'audio/wav'
         ];
-        return types.find(type => MediaRecorder.isTypeSupported(type)) || '';
+        try {
+            return types.find(type => MediaRecorder.isTypeSupported(type)) || '';
+        } catch (e) {
+            return '';
+        }
     };
 
     const startRecording = async () => {
         try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error("Your browser does not support audio recording.");
+            }
+
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const mimeType = getSupportedMimeType();
-            const options = mimeType ? { mimeType } : {};
+
+            // For iOS Safari, audio/mp4 is usually required, but sometimes no options works better
+            let options = {};
+            if (mimeType) {
+                options = { mimeType };
+            }
 
             mediaRecorderRef.current = new MediaRecorder(stream, options);
             chunksRef.current = [];
 
             // Audio Visualizer Setup
-            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-            const source = audioContextRef.current.createMediaStreamSource(stream);
-            analyserRef.current = audioContextRef.current.createAnalyser();
-            analyserRef.current.fftSize = 32;
-            source.connect(analyserRef.current);
-            dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) {
+                console.warn("AudioContext not supported");
+            } else {
+                audioContextRef.current = new AudioContextClass();
+                if (audioContextRef.current.state === 'suspended') {
+                    await audioContextRef.current.resume();
+                }
+                const source = audioContextRef.current.createMediaStreamSource(stream);
+                analyserRef.current = audioContextRef.current.createAnalyser();
+                analyserRef.current.fftSize = 32;
+                source.connect(analyserRef.current);
+                dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
 
-            const updateVisualizer = () => {
-                if (!analyserRef.current) return;
-                analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+                const updateVisualizer = () => {
+                    if (!analyserRef.current) return;
+                    analyserRef.current.getByteFrequencyData(dataArrayRef.current);
 
-                // Extract 8 specific bins for frequencies (Low -> High)
-                const bins = [0, 1, 2, 4, 6, 8, 10, 12].map(idx => dataArrayRef.current[idx] || 0);
-                setAudioLevels(bins);
-
-                // Also keep track of average for the pulsing background
-                const average = bins.reduce((a, b) => a + b, 0) / bins.length;
-                setAudioLevel(average);
-
-                animationFrameRef.current = requestAnimationFrame(updateVisualizer);
-            };
-            updateVisualizer();
+                    const bins = [0, 1, 2, 4, 6, 8, 10, 12].map(idx => dataArrayRef.current[idx] || 0);
+                    setAudioLevels(bins);
+                    const average = bins.reduce((a, b) => a + b, 0) / bins.length;
+                    setAudioLevel(average);
+                    animationFrameRef.current = requestAnimationFrame(updateVisualizer);
+                };
+                updateVisualizer();
+            }
 
             mediaRecorderRef.current.ondataavailable = (e) => {
                 if (e.data.size > 0) {
@@ -130,7 +148,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
                 if (audioContextRef.current) audioContextRef.current.close();
             };
 
-            mediaRecorderRef.current.start();
+            mediaRecorderRef.current.start(1000); // Send data chunks every second
             setIsRecording(true);
             setError('');
 
@@ -396,7 +414,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
                                             Recording Live
                                         </p>
                                         {recordingTime < MIN_DURATION_SECONDS && (
-                                            <p className="text-xs text-slate-500 font-mono">2:00 MIN REQ — {formatTime(recordingTime)}</p>
+                                            <p className="text-xs text-slate-500 font-mono">Speak for at least 3s — {formatTime(recordingTime)}</p>
                                         )}
                                     </div>
                                 </>
@@ -435,7 +453,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
                                     {!isDurationValid && (
                                         <div className="mt-6 bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-lg flex items-center gap-2 text-red-200 text-sm">
                                             <AlertCircle size={14} />
-                                            <span>Recording too short. Must be at least 2 minutes.</span>
+                                            <span>Recording too short. Must be at least 3 seconds.</span>
                                         </div>
                                     )}
                                 </>
