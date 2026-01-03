@@ -98,12 +98,6 @@ const ActivityHistory = ({ onSelectTranscript, onSelectDraft }) => {
                                                     <Calendar size={14} className="text-slate-400" />
                                                     {formatDate(session.created_at || session.date)}
                                                 </span>
-                                                {session.audio_url && (
-                                                    <span className="flex items-center gap-1.5 text-indigo-600 font-medium">
-                                                        <Headphones size={14} />
-                                                        Audio Attached
-                                                    </span>
-                                                )}
                                             </div>
                                         </div>
                                     </div>
