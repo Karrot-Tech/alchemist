@@ -4,7 +4,7 @@ import { ArrowLeft, Play, FileText, ChevronDown, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AssessmentStudio = ({
-    transcriptData, // { text, id, patient }
+    transcriptData, // { text, id, patient, assessments, assessment (legacy) }
     onNavigate
 }) => {
     const [templates, setTemplates] = useState([]);
@@ -12,18 +12,26 @@ const AssessmentStudio = ({
     const [isAssessmentLoading, setIsAssessmentLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [soapData, setSoapData] = useState(null);
+    const [assessmentHistory, setAssessmentHistory] = useState(transcriptData?.assessments || []);
     const [analysisCount, setAnalysisCount] = useState(0);
     const [doctorNotes, setDoctorNotes] = useState(transcriptData?.notes || '');
 
     // Sync notes and assessment if transcriptData changes
     useEffect(() => {
         if (transcriptData?.notes) setDoctorNotes(transcriptData.notes);
-        if (transcriptData?.assessment) {
+        if (transcriptData?.assessments) setAssessmentHistory(transcriptData.assessments);
+
+        // Load latest assessment by default if available
+        if (transcriptData?.assessments?.length > 0) {
+            setSoapData(transcriptData.assessments[0].content);
+        } else if (transcriptData?.assessment) {
+            // Fallback for legacy
             try {
-                setSoapData(JSON.parse(transcriptData.assessment));
-            } catch (e) {
-                console.error("Failed to parse stored assessment:", e);
-            }
+                const parsed = typeof transcriptData.assessment === 'string'
+                    ? JSON.parse(transcriptData.assessment)
+                    : transcriptData.assessment;
+                setSoapData(parsed);
+            } catch (e) { }
         }
     }, [transcriptData]);
 
@@ -67,14 +75,26 @@ const AssessmentStudio = ({
 
         setIsSaving(true);
         try {
-            const res = await fetch(`/api/transcripts/${transcriptData.id}/assessment`, {
-                method: 'PUT',
+            const res = await fetch(`/api/transcripts/${transcriptData.id}/assessments`, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ assessment_text: JSON.stringify(soapData) })
+                body: JSON.stringify({
+                    assessment_text: soapData,
+                    template_id: parseInt(selectedTemplateId) || null
+                })
             });
 
             if (res.ok) {
-                toast.success("Assessment saved to patient record.");
+                const result = await res.json();
+                toast.success("Assessment added to record history.");
+                // Update history locally
+                const newEntry = {
+                    id: result.id,
+                    content: soapData,
+                    template_name: templates.find(t => t.id === parseInt(selectedTemplateId))?.name || 'Manual',
+                    created_at: new Date().toISOString()
+                };
+                setAssessmentHistory(prev => [newEntry, ...prev]);
             } else {
                 throw new Error("Failed to save assessment");
             }
@@ -116,7 +136,7 @@ const AssessmentStudio = ({
     };
 
     return (
-        <div className="h-full flex flex-col bg-slate-50 border-l border-slate-200 animate-fade-in">
+        <div className="h-full flex flex-col bg-slate-50 border-l border-slate-200 animate-fade-in text-slate-900">
             {/* Studio Header */}
             <div className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm z-30 sticky top-0">
                 <div className="flex items-center space-x-4">
@@ -179,29 +199,65 @@ const AssessmentStudio = ({
                 </div>
             </div>
 
-            {/* Studio Canvas - Split Screen */}
+            {/* Studio Canvas - 3-Column Layout */}
             <div className="flex-1 overflow-hidden flex">
-                {/* Left Panel: Source Transcript */}
-                <div className="w-[45%] border-r border-slate-200 bg-white flex flex-col relative z-10">
-                    <div className="px-6 py-3 bg-slate-50/80 backdrop-blur-sm border-b border-slate-100 flex justify-between items-center sticky top-0">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center">
-                            <span className="w-2 h-2 rounded-full bg-slate-400 mr-2"></span>
+                {/* Column 1: Assessment History (20%) */}
+                <div className="w-[20%] border-r border-slate-200 bg-slate-50/50 flex flex-col">
+                    <div className="px-6 py-3 bg-slate-100/80 border-b border-slate-200 flex items-center">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mr-2"></span>
+                            Report History
+                        </span>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                        {assessmentHistory.length === 0 ? (
+                            <p className="text-xs text-slate-400 text-center py-8 italic">No saved reports.</p>
+                        ) : (
+                            assessmentHistory.map((item, idx) => (
+                                <button
+                                    key={item.id || idx}
+                                    onClick={() => {
+                                        setSoapData(item.content);
+                                        setAnalysisCount(prev => prev + 1);
+                                    }}
+                                    className={`w-full text-left p-3 rounded-xl border transition-all hover:shadow-sm ${JSON.stringify(soapData) === JSON.stringify(item.content)
+                                        ? 'bg-white border-indigo-200 ring-2 ring-indigo-500/10 shadow-sm shadow-indigo-100'
+                                        : 'bg-white/50 border-slate-200 opacity-60 hover:opacity-100'
+                                        }`}
+                                >
+                                    <p className="text-[10px] font-bold text-slate-700 truncate mb-1">
+                                        {item.template_name || 'Clinical Report'}
+                                    </p>
+                                    <p className="text-[10px] text-slate-400 font-mono">
+                                        {new Date(item.created_at).toLocaleDateString()} at {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                </button>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Column 2: Transcript & Notes (35%) */}
+                <div className="w-[35%] border-r border-slate-200 bg-white flex flex-col relative z-10">
+                    <div className="px-6 py-3 bg-slate-50/80 backdrop-blur-sm border-b border-slate-100 flex items-center">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center">
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-2"></span>
                             Source Transcript
                         </span>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-8 font-mono text-sm leading-relaxed text-slate-600 bg-slate-50/30 selection:bg-indigo-100 selection:text-indigo-900 border-b border-slate-200">
+                    <div className="flex-1 overflow-y-auto p-8 font-mono text-xs leading-relaxed text-slate-600 bg-slate-50/20 selection:bg-indigo-100 selection:text-indigo-900 border-b border-slate-200">
                         {transcriptData?.text}
                     </div>
-                    {/* Doctor's Notes Section (Bottom Left) */}
-                    <div className="h-1/3 flex flex-col bg-yellow-50/30">
+                    {/* Doctor's Notes Section (Bottom) */}
+                    <div className="h-[200px] flex flex-col bg-yellow-50/20">
                         <div className="px-6 py-2 bg-yellow-50/80 border-b border-yellow-100 flex items-center">
-                            <span className="text-xs font-bold text-yellow-600 uppercase tracking-widest flex items-center">
-                                <span className="w-2 h-2 rounded-full bg-yellow-400 mr-2"></span>
+                            <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest flex items-center">
+                                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 mr-2"></span>
                                 Doctor's Notes
                             </span>
                         </div>
                         <textarea
-                            className="flex-1 w-full p-4 bg-transparent outline-none resize-none text-sm text-slate-700"
+                            className="flex-1 w-full p-4 bg-transparent outline-none resize-none text-xs text-slate-700"
                             placeholder="Add clinical observations here..."
                             value={doctorNotes}
                             onChange={(e) => setDoctorNotes(e.target.value)}
@@ -209,18 +265,18 @@ const AssessmentStudio = ({
                     </div>
                 </div>
 
-                {/* Right Panel: Clinical Output */}
-                <div className="flex-1 flex flex-col bg-slate-100/50">
-                    <div className="px-6 py-3 bg-white/80 backdrop-blur-sm border-b border-slate-200 flex justify-between items-center sticky top-0">
-                        <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest flex items-center">
-                            <span className="w-2 h-2 rounded-full bg-indigo-500 mr-2 animate-pulse"></span>
+                {/* Column 3: Clinical Output (45%) */}
+                <div className="flex-1 flex flex-col bg-slate-100/30 overflow-hidden">
+                    <div className="px-6 py-3 bg-white/80 backdrop-blur-sm border-b border-slate-200 flex items-center">
+                        <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest flex items-center">
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mr-2 animate-pulse"></span>
                             Clinical Output
                         </span>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-8">
                         {soapData ? (
-                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-full">
+                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-full">
                                 <SOAPEditor
                                     key={analysisCount}
                                     initialData={soapData}
@@ -228,16 +284,13 @@ const AssessmentStudio = ({
                                 />
                             </div>
                         ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-6">
-                                <div className="relative">
-                                    <div className="absolute inset-0 bg-indigo-100 rounded-full animate-ping opacity-20"></div>
-                                    <div className="p-6 bg-white rounded-full border border-slate-200 shadow-sm relative z-10">
-                                        <FileText size={40} className="text-indigo-200" />
-                                    </div>
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4">
+                                <div className="p-6 bg-white rounded-full border border-slate-200 shadow-sm">
+                                    <FileText size={32} className="text-slate-200" />
                                 </div>
                                 <div className="text-center">
-                                    <h3 className="text-slate-600 font-medium mb-1">Ready to Assess</h3>
-                                    <p className="text-sm">Select a template above to generate notes.</p>
+                                    <h3 className="text-slate-600 font-medium text-sm">No Report Loaded</h3>
+                                    <p className="text-xs">Run analysis or select an item from history.</p>
                                 </div>
                             </div>
                         )}

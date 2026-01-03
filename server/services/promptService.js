@@ -102,7 +102,19 @@ class PromptService {
 
                 // Migrations (for existing tables)
                 try { await client.query(`ALTER TABLE transcripts ADD COLUMN IF NOT EXISTS audio_url TEXT`); } catch (e) { }
-                try { await client.query(`ALTER TABLE transcripts ADD COLUMN IF NOT EXISTS assessment_text TEXT`); } catch (e) { }
+                // [DEPRECATED] assessment_text on transcripts table, moved to assessments table
+
+                // Assessments Table (One Transcript -> Multiple Assessments)
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS assessments (
+                        id SERIAL PRIMARY KEY,
+                        transcript_id INTEGER REFERENCES transcripts(id) ON DELETE CASCADE,
+                        template_id INTEGER REFERENCES templates(id) ON DELETE SET NULL,
+                        content JSONB,
+                        doctor_id TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                `);
 
             } finally {
                 client.release();
@@ -249,7 +261,11 @@ class PromptService {
     async getAllTranscripts(userId) {
         try {
             const result = await this.pool.query(
-                "SELECT * FROM transcripts WHERE doctor_id = $1 ORDER BY created_at DESC",
+                `SELECT t.*, 
+                 (SELECT COUNT(*) FROM assessments a WHERE a.transcript_id = t.id) as assessment_count
+                 FROM transcripts t 
+                 WHERE t.doctor_id = $1 
+                 ORDER BY t.created_at DESC`,
                 [userId]
             );
             return result.rows;
@@ -271,6 +287,7 @@ class PromptService {
     }
 
     async updateTranscriptAssessment(id, assessmentText, userId) {
+        // [LEGACY/COMPAT] Still updates the column for now, but we prefer the assessments table
         try {
             const result = await this.pool.query(
                 `UPDATE transcripts SET assessment_text = $1 WHERE id = $2 AND doctor_id = $3`,
@@ -278,6 +295,37 @@ class PromptService {
             );
             return { success: true, rowCount: result.rowCount };
         } catch (err) {
+            throw err;
+        }
+    }
+
+    async saveAssessment(transcriptId, templateId, content, userId) {
+        try {
+            const result = await this.pool.query(
+                `INSERT INTO assessments(transcript_id, template_id, content, doctor_id) 
+                 VALUES($1, $2, $3, $4) RETURNING id`,
+                [transcriptId, templateId, content, userId]
+            );
+            return result.rows[0].id;
+        } catch (err) {
+            console.error("Error saving assessment:", err);
+            throw err;
+        }
+    }
+
+    async getAssessmentsForTranscript(transcriptId, userId) {
+        try {
+            const result = await this.pool.query(
+                `SELECT a.*, t.name as template_name 
+                 FROM assessments a 
+                 LEFT JOIN templates t ON a.template_id = t.id
+                 WHERE a.transcript_id = $1 AND a.doctor_id = $2
+                 ORDER BY a.created_at DESC`,
+                [transcriptId, userId]
+            );
+            return result.rows;
+        } catch (err) {
+            console.error("Error fetching assessments:", err);
             throw err;
         }
     }

@@ -129,13 +129,42 @@ app.get('/api/transcripts/:id', requireAuth, async (req, res) => {
     try {
         const item = await promptService.getTranscriptById(req.params.id, req.auth.userId);
         if (!item) return res.status(404).json({ error: "Transcript not found" });
-        res.json(item);
+
+        // Also fetch all linked assessments
+        const assessments = await promptService.getAssessmentsForTranscript(req.params.id, req.auth.userId);
+        res.json({ ...item, assessments });
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch transcript" });
     }
 });
 
+app.get('/api/transcripts/:id/assessments', requireAuth, async (req, res) => {
+    try {
+        const assessments = await promptService.getAssessmentsForTranscript(req.params.id, req.auth.userId);
+        res.json(assessments);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch assessments" });
+    }
+});
+
+app.post('/api/transcripts/:id/assessments', requireAuth, async (req, res) => {
+    try {
+        const { assessment_text, template_id } = req.body;
+        // assessment_text is JSON content
+        const id = await promptService.saveAssessment(req.params.id, template_id, assessment_text, req.auth.userId);
+
+        // [COMPAT] Still update the legacy column for basic UI compatibility
+        await promptService.updateTranscriptAssessment(req.params.id, JSON.stringify(assessment_text), req.auth.userId);
+
+        res.json({ success: true, id });
+    } catch (error) {
+        console.error("Save assessment error:", error);
+        res.status(500).json({ error: "Failed to save assessment" });
+    }
+});
+
 app.put('/api/transcripts/:id/assessment', requireAuth, async (req, res) => {
+    // Keep this for legacy / single-replace logic if needed
     try {
         const { assessment_text } = req.body;
         const result = await promptService.updateTranscriptAssessment(req.params.id, assessment_text, req.auth.userId);

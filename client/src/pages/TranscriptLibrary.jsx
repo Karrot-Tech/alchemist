@@ -131,9 +131,9 @@ const TranscriptLibrary = ({ onSelectTranscript }) => {
                                                             <Headphones size={10} /> Audio
                                                         </span>
                                                     )}
-                                                    {t.assessment_text && (
+                                                    {t.assessment_count > 0 && (
                                                         <span className="text-[10px] font-bold uppercase py-1 px-2 bg-emerald-50 text-emerald-600 rounded-md flex items-center gap-1">
-                                                            <ClipboardCheck size={10} /> Report
+                                                            <ClipboardCheck size={10} /> {t.assessment_count > 1 ? `${t.assessment_count} Reports` : 'Report'}
                                                         </span>
                                                     )}
                                                     <span className="text-xs font-bold px-2 py-1 bg-slate-100 rounded-md text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
