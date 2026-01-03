@@ -27,7 +27,7 @@ const Layout = ({ children, activeTab, onNavigate }) => {
                     onClick={() => onNavigate('dashboard')}
                 >
                     <img src="/favicon.png" alt="Logo" className="h-8 w-8 mr-3 rounded-lg shadow-sm" />
-                    <span className="text-lg font-bold tracking-tight text-slate-800">Alchemist AI</span>
+                    <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-cyan-600 to-indigo-600 bg-clip-text text-transparent">Alchemist AI</span>
                 </div>
 
                 {/* Navigation */}
