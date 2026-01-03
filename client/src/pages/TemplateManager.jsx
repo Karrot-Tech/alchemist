@@ -291,14 +291,25 @@ function TemplateManager() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                                <p className="text-sm text-slate-500 mb-2">Editing template file: <span className="font-mono text-xs">{editingTemplate.file_path}</span></p>
+                            <div className="mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="text-sm text-slate-500 overflow-hidden">
+                                    <span className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Current File</span>
+                                    <a
+                                        href={editingTemplate.file_path}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="font-mono text-indigo-600 hover:underline truncate block"
+                                        title={editingTemplate.file_path}
+                                    >
+                                        {editingTemplate.file_path.split('/').pop()}
+                                    </a>
+                                </div>
                                 <button
                                     onClick={handleRefreshSchema}
                                     disabled={refreshing}
-                                    className="text-indigo-600 text-sm font-bold hover:underline flex items-center"
+                                    className="text-slate-500 hover:text-indigo-600 text-sm font-medium flex items-center whitespace-nowrap"
                                 >
-                                    {refreshing ? 'Refreshing...' : '↻ Refresh Schema from File'}
+                                    {refreshing ? 'Refreshing...' : '↻ Re-Analyze File'}
                                 </button>
                             </div>
                         )}
