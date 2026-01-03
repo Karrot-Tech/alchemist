@@ -238,17 +238,26 @@ app.post('/api/upload', requireAuth, upload.single('audio'), async (req, res) =>
 
         // 2. Upload to Gemini
         let mimeType = req.file.mimetype;
-        if (mimeType === 'application/octet-stream' && req.file.originalname.endsWith('.mp3')) {
+
+        // Normalize MIME Types for Gemini
+        // audio/mp4 (standard on iOS) is often better handled as audio/aac or left as is if known,
+        // but Gemini docs specifically mention audio/aac.
+        if (mimeType === 'audio/mp4' || req.file.originalname.endsWith('.mp4') || req.file.originalname.endsWith('.m4a')) {
+            mimeType = "audio/aac";
+        } else if (mimeType === 'application/octet-stream' && req.file.originalname.endsWith('.mp3')) {
             mimeType = "audio/mp3";
         }
+
         mimeType = mimeType || "audio/mp3";
+
+        console.log(`[Async] Uploading to Gemini with MIME: ${mimeType}`);
 
         const uploadResult = await fileManager.uploadFile(tempFilePath, {
             mimeType: mimeType,
             displayName: req.file.originalname,
         });
 
-        console.log(`[Async] Uploaded to Gemini: ${uploadResult.file.name}`);
+        console.log(`[Async] Uploaded to Gemini: ${uploadResult.file.name} (URI: ${uploadResult.file.uri})`);
 
         // 3. Store permanent backup (Vercel Blob) - Async (don't await strictly if speed is key, but good to keep)
         let permanentAudioUrl = null;
@@ -304,7 +313,14 @@ app.post('/api/generate', requireAuth, async (req, res) => {
         const { file_uri, mime_type } = req.body;
         if (!file_uri) return res.status(400).json({ error: "No file URI provided" });
 
-        console.log(`[Async] Generating transcript for: ${file_uri}`);
+        // Normalize MIME type to match the upload logic
+        let normalizedMime = mime_type;
+        if (normalizedMime === 'audio/mp4' || file_uri.toLowerCase().includes('.mp4') || file_uri.toLowerCase().includes('.m4a')) {
+            normalizedMime = "audio/aac";
+        }
+        normalizedMime = normalizedMime || "audio/mp3";
+
+        console.log(`[Async] Generating transcript for: ${file_uri} with MIME: ${normalizedMime}`);
 
         const modelName = process.env.GEMINI_MODEL_TRANSCRIBE || "gemini-2.0-flash";
         const model = genAI.getGenerativeModel({ model: modelName });
@@ -317,7 +333,7 @@ app.post('/api/generate', requireAuth, async (req, res) => {
             {
                 fileData: {
                     fileUri: file_uri,
-                    mimeType: mime_type || "audio/mp3",
+                    mimeType: normalizedMime,
                 },
             },
         ]);
@@ -326,8 +342,12 @@ app.post('/api/generate', requireAuth, async (req, res) => {
         res.json({ transcript: transcriptText });
 
     } catch (error) {
-        console.error("Generate Error:", error);
-        res.status(500).json({ error: error.message });
+        console.error("Generate Error Detailed:", error);
+        res.status(500).json({
+            error: "Transcript generation failed",
+            message: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 
