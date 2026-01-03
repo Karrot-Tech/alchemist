@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Upload, FileText, CheckCircle, Pencil, Trash2 } from 'lucide-react'; // Added Trash2
+import { Upload, FileText, CheckCircle, Pencil, Trash2 } from 'lucide-react';
 
 function TemplateManager() {
     const [templates, setTemplates] = useState([]);
@@ -20,8 +20,7 @@ function TemplateManager() {
     // Edit State
     const [editingTemplate, setEditingTemplate] = useState(null);
     const saveSectionRef = React.useRef(null);
-
-    // ... useEffect ...
+    const editorTopRef = React.useRef(null);
 
     const fetchTemplates = async () => {
         setLoading(true);
@@ -29,7 +28,7 @@ function TemplateManager() {
             const res = await fetch('/api/templates');
             const data = await res.json();
             if (res.ok) {
-                setTemplates(data);
+                setTemplates(data || []);
             } else {
                 toast.error("Failed to load templates");
             }
@@ -111,13 +110,12 @@ function TemplateManager() {
             return toast.error("Invalid JSON Schema format");
         }
 
-        const url = editingTemplate ? `/api/templates/${editingTemplate.id}` : '/api/templates'; // Fixed URL spacing
+        const url = editingTemplate ? `/api/templates/${editingTemplate.id}` : '/api/templates';
         const method = editingTemplate ? 'PUT' : 'POST';
 
         let body, headers;
 
         if (editingTemplate) {
-            // Update: JSON is fine
             headers = { 'Content-Type': 'application/json' };
             body = JSON.stringify({
                 name,
@@ -126,16 +124,13 @@ function TemplateManager() {
                 schema_json: schemaJson
             });
         } else {
-            // Create: Must be FormData for file upload
             const formData = new FormData();
             formData.append('file', file);
             formData.append('name', name);
             formData.append('description', description);
             formData.append('prompt_text', promptText);
             formData.append('schema_json', schemaJson);
-
             body = formData;
-            // No Content-Type header for FormData; browser sets it with boundary
         }
 
         try {
@@ -172,6 +167,11 @@ function TemplateManager() {
         }
         setFilePath(t.file_path);
         setFile(null);
+
+        // Scroll to editor
+        setTimeout(() => {
+            editorTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
     };
 
     const resetForm = () => {
@@ -204,7 +204,7 @@ function TemplateManager() {
 
     return (
         <div className="px-8 py-8 max-w-6xl mx-auto animate-fade-in pb-20 text-slate-900">
-            {/* Header ... */}
+            {/* Header */}
             <div className="flex justify-between items-center mb-10">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900 mb-2">Template Manager</h1>
@@ -218,8 +218,42 @@ function TemplateManager() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left: Editor */}
-                <div className="space-y-6">
+                {/* List: Existing Templates (Now First/Left) */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit order-first">
+                    <h2 className="font-bold text-lg mb-6 text-slate-800">Existing Templates</h2>
+                    {loading ? (
+                        <p className="text-slate-400">Loading...</p>
+                    ) : templates.length === 0 ? (
+                        <p className="text-slate-400">No templates found.</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {templates.map(t => (
+                                <div key={t.id} className="p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors group">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h3 className="font-bold text-slate-900">{t.name}</h3>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                {/* Status indicator? Maybe unnecessary but cute */}
+                                                <div className={`w-1.5 h-1.5 rounded-full ${editingTemplate?.id === t.id ? 'bg-indigo-500' : 'bg-slate-300'}`}></div>
+                                                <p className="text-xs text-slate-500">{t.description || 'No description'}</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => startEdit(t)}
+                                            className="text-slate-400 hover:text-indigo-600 p-2 rounded-lg hover:bg-indigo-50 transition-all"
+                                            title="Edit Template"
+                                        >
+                                            <Pencil size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Editor: Upload & Configure (Now Second/Right) */}
+                <div className="space-y-6" ref={editorTopRef}>
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                         <h2 className="font-bold text-lg mb-4 text-slate-800">{editingTemplate ? `Edit: ${editingTemplate.name}` : '1. Upload & Analyze'}</h2>
 
@@ -231,12 +265,11 @@ function TemplateManager() {
                                         id="file-upload"
                                         type="file"
                                         accept=".docx"
-                                        disabled={analyzing} // Disabled when analyzing
+                                        disabled={analyzing}
                                         onChange={e => {
                                             const selectedFile = e.target.files[0];
                                             if (selectedFile) {
                                                 setFile(selectedFile);
-                                                // Auto-fill name logic
                                                 if (!name) {
                                                     const cleanName = selectedFile.name
                                                         .replace(/\.docx?$/i, '')
@@ -320,36 +353,6 @@ function TemplateManager() {
                             </div>
                         </div>
                     </div>
-                </div>
-
-                {/* Right: List */}
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
-                    <h2 className="font-bold text-lg mb-6 text-slate-800">Existing Templates</h2>
-                    {loading ? (
-                        <p className="text-slate-400">Loading...</p>
-                    ) : templates.length === 0 ? (
-                        <p className="text-slate-400">No templates found.</p>
-                    ) : (
-                        <div className="space-y-3">
-                            {templates.map(t => (
-                                <div key={t.id} className="p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors group">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h3 className="font-bold text-slate-900">{t.name}</h3>
-                                            <p className="text-xs text-slate-500 mt-1">{t.description}</p>
-                                        </div>
-                                        <button
-                                            onClick={() => startEdit(t)}
-                                            className="text-slate-400 hover:text-indigo-600 p-2 opacity-0 group-hover:opacity-100 transition-all"
-                                            title="Edit Template"
-                                        >
-                                            <Pencil size={16} />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </div>
             </div>
         </div>
