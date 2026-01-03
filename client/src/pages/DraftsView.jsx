@@ -32,12 +32,12 @@ const DraftsView = ({ onSelectTranscript }) => {
 
     return (
         <div className="h-full flex flex-col bg-slate-50 p-8 animate-fade-in text-slate-900">
-            <header className="mb-8 flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-slate-800">Sessions Inbox</h1>
-                    <p className="text-slate-500 mt-2">Unassigned recordings and sessions.</p>
-                </div>
-                <div className="relative w-64">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+                <header>
+                    <h1 className="text-3xl font-bold text-slate-800 mb-2">Sessions Inbox</h1>
+                    <p className="text-slate-500">Unassigned recordings and sessions.</p>
+                </header>
+                <div className="relative w-full md:w-72">
                     <Search size={16} className="absolute left-3 top-3 text-slate-400" />
                     <input
                         className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-sm"
@@ -46,7 +46,7 @@ const DraftsView = ({ onSelectTranscript }) => {
                         onChange={e => setSearchTerm(e.target.value)}
                     />
                 </div>
-            </header>
+            </div>
 
             {loading ? (
                 <div className="flex-1 flex items-center justify-center">

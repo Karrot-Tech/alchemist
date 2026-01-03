@@ -741,10 +741,11 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
         ]);
         console.log(`Fetched ${patients.length} patients, ${transcripts.length} transcripts, ${templates.length} templates`);
 
-        const recentActivity = transcripts.slice(0, 3).map(t => ({
+        const recentActivity = transcripts.slice(0, 5).map(t => ({
             id: t.id,
             patient: t.patient_name,
             date: t.date,
+            created_at: t.created_at,
             summary: t.content ? t.content.substring(0, 100) + '...' : 'No content',
             type: 'session'
         }));
@@ -756,7 +757,8 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
             total_patients: patients.length,
             total_drafts: drafts.length,
             total_records: transcripts.length - drafts.length,
-            total_templates: templates.length
+            total_templates: templates.length,
+            total_sessions: transcripts.length
         };
 
         res.json({ stats, recentActivity });

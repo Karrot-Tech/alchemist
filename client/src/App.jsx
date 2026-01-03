@@ -10,6 +10,7 @@ import AssessmentStudio from './pages/AssessmentStudio';
 import TemplateManager from './pages/TemplateManager';
 import PatientManager from './pages/PatientManager';
 import DraftsView from './pages/DraftsView';
+import ActivityHistory from './pages/ActivityHistory';
 import Settings from './pages/Settings';
 import LandingPage from './pages/LandingPage';
 
@@ -194,6 +195,13 @@ function App() {
             {appMode === 'templates' && <TemplateManager />}
 
             {appMode === 'patients' && <PatientManager />}
+
+            {appMode === 'activity' && (
+              <ActivityHistory
+                onSelectTranscript={startAssessment}
+                onSelectDraft={resumeSession}
+              />
+            )}
 
             {appMode === 'settings' && <Settings />}
           </Layout>

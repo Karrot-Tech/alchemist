@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 
 const TranscriptViewer = ({ transcript, onTranscriptChange, onValidationReceived }) => {
     const [isValidating, setIsValidating] = useState(false);
@@ -17,6 +18,9 @@ const TranscriptViewer = ({ transcript, onTranscriptChange, onValidationReceived
             const data = await response.json();
             setValidationResult(data);
             if (onValidationReceived) onValidationReceived(data);
+
+            // Show toast message with Score & Clarity
+            toast.success(`Validation Complete: Score ${data.quality_score}/100, Clarity: ${data.clarity}`);
         } catch (error) {
             console.error("Validation failed", error);
             alert("Validation failed: " + error.message);

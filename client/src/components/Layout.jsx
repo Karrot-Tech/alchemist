@@ -10,6 +10,7 @@ const Layout = ({ children, activeTab, onNavigate }) => {
 
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: Home },
+        { id: 'activity', label: 'Activity History', icon: Clock },
         { id: 'drafts', label: 'Sessions Inbox', icon: Inbox },
         { id: 'library', label: 'Consult Records', icon: FolderOpen },
         { id: 'patients', label: 'Patient Directory', icon: Users },

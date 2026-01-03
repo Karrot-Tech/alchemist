@@ -14,6 +14,16 @@ const PatientManager = () => {
     const [newMRN, setNewMRN] = useState('');
     const [newDOB, setNewDOB] = useState('');
 
+    const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return '-';
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${month}/${day}/${year}`;
+    };
+
     useEffect(() => {
         fetchPatients();
     }, []);
@@ -81,7 +91,7 @@ const PatientManager = () => {
 
     return (
         <div className="p-8 max-w-6xl mx-auto animate-fade-in pb-20">
-            <div className="flex justify-between items-center mb-10">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900 mb-2">Patient Directory</h1>
                     <p className="text-slate-500">Manage patient records and demographics.</p>
@@ -89,7 +99,7 @@ const PatientManager = () => {
                 {!showForm && (
                     <button
                         onClick={() => setShowForm(true)}
-                        className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-indigo-700 flex items-center transition-all hover:shadow-md"
+                        className="w-full md:w-auto bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-indigo-700 flex items-center justify-center transition-all hover:shadow-md"
                     >
                         <UserPlus size={18} className="mr-2" /> Add New Patient
                     </button>
@@ -138,7 +148,7 @@ const PatientManager = () => {
             )}
 
             {/* Search */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden overflow-x-auto">
                 <div className="p-4 border-b border-slate-100 flex items-center bg-slate-50/50">
                     <Search size={18} className="text-slate-400 mr-2" />
                     <input
@@ -165,18 +175,18 @@ const PatientManager = () => {
                                 <th className="px-6 py-3">Patient Name</th>
                                 <th className="px-6 py-3">MRN</th>
                                 <th className="px-6 py-3">DOB</th>
-                                <th className="px-6 py-3">Added</th>
+                                <th className="px-6 py-3 hidden md:table-cell">Added</th>
                                 <th className="px-6 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {filtered.map(p => (
-                                <tr key={p.id} className="group hover:bg-slate-50/80 transition-colors">
+                                <tr key={p.id} className="group hover:bg-slate-50 transition-colors even:bg-slate-50/50">
                                     <td className="px-6 py-4 font-medium text-slate-900">{p.name}</td>
                                     <td className="px-6 py-4 text-slate-500 font-mono text-xs">{p.mrn || '-'}</td>
-                                    <td className="px-6 py-4 text-slate-500">{p.dob || '-'}</td>
-                                    <td className="px-6 py-4 text-slate-400 text-xs">
-                                        {new Date(p.created_at).toLocaleDateString()}
+                                    <td className="px-6 py-4 text-slate-500">{formatDate(p.dob)}</td>
+                                    <td className="px-6 py-4 text-slate-400 text-xs hidden md:table-cell">
+                                        {formatDate(p.created_at)}
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <button

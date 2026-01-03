@@ -221,10 +221,10 @@ class PromptService {
     async createPatient(name, mrn, dob, userId) {
         try {
             const result = await this.pool.query(
-                `INSERT INTO patients(name, mrn, dob, doctor_id) VALUES($1, $2, $3, $4) RETURNING id`,
+                `INSERT INTO patients(name, mrn, dob, doctor_id) VALUES($1, $2, $3, $4) RETURNING id, created_at`,
                 [name, mrn || '', dob || '', userId]
             );
-            return { id: result.rows[0].id, name, mrn, dob };
+            return { id: result.rows[0].id, name, mrn, dob, created_at: result.rows[0].created_at };
         } catch (err) {
             throw err;
         }
@@ -233,11 +233,11 @@ class PromptService {
     async updatePatient(id, name, mrn, dob, userId) {
         try {
             const result = await this.pool.query(
-                `UPDATE patients SET name = $1, mrn = $2, dob = $3 WHERE id = $4 AND doctor_id = $5`,
+                `UPDATE patients SET name = $1, mrn = $2, dob = $3 WHERE id = $4 AND doctor_id = $5 RETURNING created_at`,
                 [name, mrn || '', dob || '', id, userId]
             );
             if (result.rowCount === 0) throw new Error("Patient not found or unauthorized");
-            return { id, name, mrn, dob };
+            return { id, name, mrn, dob, created_at: result.rows[0].created_at };
         } catch (err) {
             throw err;
         }

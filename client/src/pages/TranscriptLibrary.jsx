@@ -86,13 +86,30 @@ const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
         }
     };
 
+    const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return '-';
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const year = d.getFullYear();
+
+        // Add time
+        const hours = d.getHours();
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours % 12 || 12;
+
+        return `${month}/${day}/${year} • ${displayHours}:${minutes} ${ampm}`;
+    };
+
     return (
         <div className="flex h-full animate-fade-in text-slate-900">
             {/* Left Sidebar: Patient List */}
             {/* Logic: Hidden on mobile IF a patient is selected. Always visible on Desktop */}
             <div className={`w-full lg:w-80 border-r border-slate-200 bg-white flex flex-col ${selectedPatientId ? 'hidden lg:flex' : 'flex'}`}>
                 <div className="p-4 border-b border-slate-100">
-                    <h2 className="font-bold text-lg mb-4 text-slate-800">Consult Records</h2>
+                    <h1 className="text-3xl font-bold text-slate-900 mb-6">Consult Records</h1>
                     <div className="relative">
                         <Search size={16} className="absolute left-3 top-3 text-slate-400" />
                         <input
@@ -109,16 +126,16 @@ const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
                     ) : filteredPatients.length === 0 ? (
                         <div className="p-4 text-center text-slate-400 text-sm">No patients found.</div>
                     ) : (
-                        <div className="divide-y divide-slate-50">
+                        <div className="divide-y divide-slate-200">
                             {filteredPatients.map(p => (
                                 <button
                                     key={p.id}
                                     onClick={() => setSelectedPatientId(p.id)}
-                                    className={`w-full text-left p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group ${selectedPatientId === p.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'border-l-4 border-transparent'}`}
+                                    className={`w-full text-left p-4 hover:bg-slate-100 transition-colors flex items-center justify-between group even:bg-slate-50/50 ${selectedPatientId === p.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'border-l-4 border-transparent'}`}
                                 >
                                     <div>
                                         <p className={`font-medium text-sm ${selectedPatientId === p.id ? 'text-indigo-900' : 'text-slate-700'}`}>{p.name}</p>
-                                        <p className="text-xs text-slate-400 mt-1">{p.mrn || 'No MRN'}</p>
+                                        <p className="text-xs text-slate-500 mt-1">{p.mrn || 'No MRN'}</p>
                                     </div>
                                     <ChevronRight size={16} className={`text-slate-300 ${selectedPatientId === p.id ? 'text-indigo-400' : 'group-hover:text-slate-400'}`} />
                                 </button>
@@ -150,7 +167,7 @@ const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
                             <h1 className="text-3xl font-bold text-slate-900">{selectedPatient?.name}</h1>
                             <div className="flex items-center space-x-4 mt-2 text-sm text-slate-500">
                                 <span>MRN: {selectedPatient?.mrn || 'N/A'}</span>
-                                {selectedPatient?.dob && <span>DOB: {selectedPatient.dob}</span>}
+                                {selectedPatient?.dob && <span>DOB: {formatDate(selectedPatient.dob)}</span>}
                             </div>
                         </header>
 
@@ -171,7 +188,7 @@ const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
                                             <div className="flex justify-between items-start mb-2">
                                                 <div className="flex items-center space-x-2 text-indigo-600 font-medium">
                                                     <Calendar size={16} />
-                                                    <span>{t.date}</span>
+                                                    <span>{formatDate(t.created_at || t.date)}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     {t.audio_url && (
