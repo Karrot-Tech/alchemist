@@ -6,6 +6,7 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
     const [file, setFile] = useState(null);
     const [error, setError] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
 
     // Recording State
     const [isRecording, setIsRecording] = useState(false);
@@ -27,10 +28,40 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
     const MIN_DURATION_SECONDS = 120; // 2 minutes
 
     const handleFileChange = (e) => {
-        if (e.target.files) {
+        if (e.target.files && e.target.files.length > 0) {
             setFile(e.target.files[0]);
             setError('');
             setAudioBlob(null); // Clear recording if file selected
+        }
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        const droppedFiles = e.dataTransfer.files;
+        if (droppedFiles && droppedFiles.length > 0) {
+            const droppedFile = droppedFiles[0];
+            if (droppedFile.type.startsWith('audio/')) {
+                setFile(droppedFile);
+                setError('');
+                setAudioBlob(null);
+            } else {
+                setError('Please drop a valid audio file.');
+            }
         }
     };
 
@@ -231,7 +262,15 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
 
             <div className="flex flex-col gap-6">
                 {mode === 'upload' ? (
-                    <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:bg-slate-50 transition-colors">
+                    <div
+                        className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${isDragging
+                                ? 'border-indigo-500 bg-indigo-50/50 scale-[1.01]'
+                                : 'border-slate-200 hover:bg-slate-50'
+                            }`}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                    >
                         <input
                             type="file"
                             accept="audio/*"
@@ -241,10 +280,13 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
                             className="hidden"
                         />
                         <label htmlFor="file-upload" className="cursor-pointer block">
-                            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 transition-all ${isDragging ? 'bg-indigo-600 text-white scale-110' : 'bg-indigo-50 text-indigo-600'
+                                }`}>
                                 <Upload size={24} />
                             </div>
-                            <p className="text-slate-900 font-medium mb-1">{file ? file.name : "Click to upload or drag and drop"}</p>
+                            <p className="text-slate-900 font-bold mb-1">
+                                {file ? file.name : (isDragging ? "Drop your file here" : "Click to upload or drag and drop")}
+                            </p>
                             <p className="text-xs text-slate-500">MP3, M4A, WAV, WebM (Max 50MB)</p>
                         </label>
                     </div>
@@ -310,7 +352,7 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
                                         <button
                                             onClick={togglePreview}
                                             className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all text-white shadow-lg 
-                                                ${isPreviewPlaying ? 'bg-red-500 hover:bg-red-600 shadow-red-900/50' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/50'}`}
+                                                ${isPreviewPlaying ? 'bg-red-500 hover:bg-red-600 shadow-red-900/50' : 'bg-indigo-600 hover:bg-indigo-50 shadow-indigo-900/50'}`}
                                         >
                                             {isPreviewPlaying ? (
                                                 <><Square size={18} fill="currentColor" /> Stop Preview</>
