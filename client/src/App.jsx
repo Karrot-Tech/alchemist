@@ -110,6 +110,7 @@ function App() {
         id: fullData.id,
         patient: fullData.patient_name,
         notes: fullData.notes,
+        assessments: fullData.assessments,
         assessment: fullData.assessment_text
       });
       handleNavigate('assessment');

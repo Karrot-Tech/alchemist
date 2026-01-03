@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const SOAPEditor = ({ initialData, onDownload }) => {
+const SOAPEditor = ({ initialData, onDownload, onChange }) => {
     const [formData, setFormData] = useState(initialData);
 
     React.useEffect(() => {
@@ -8,7 +8,9 @@ const SOAPEditor = ({ initialData, onDownload }) => {
     }, [initialData]);
 
     const handleChange = (field, value) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        const newData = { ...formData, [field]: value };
+        setFormData(newData);
+        if (onChange) onChange(newData);
     };
 
     return (
@@ -47,9 +49,9 @@ const SOAPEditor = ({ initialData, onDownload }) => {
 
             <button
                 onClick={() => onDownload(formData)}
-                className="w-full py-3 px-4 rounded-md text-white font-bold bg-green-600 hover:bg-green-700 transition-colors shadow-sm"
+                className="w-full py-3 px-4 rounded-md text-white font-bold bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm"
             >
-                Save & Download Final Report (.docx)
+                Download Final Report (.docx)
             </button>
         </div>
     );

@@ -70,8 +70,8 @@ const AssessmentStudio = ({
         }
     };
 
-    const handleSaveReport = async () => {
-        if (!transcriptData?.id || !soapData) return;
+    const persistAssessment = async (dataToSave) => {
+        if (!transcriptData?.id || !dataToSave) return null;
 
         setIsSaving(true);
         try {
@@ -79,36 +79,47 @@ const AssessmentStudio = ({
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    assessment_text: soapData,
+                    assessment_text: dataToSave,
                     template_id: parseInt(selectedTemplateId) || null
                 })
             });
 
             if (res.ok) {
                 const result = await res.json();
-                toast.success("Assessment added to record history.");
                 // Update history locally
                 const newEntry = {
                     id: result.id,
-                    content: soapData,
+                    content: dataToSave,
                     template_name: templates.find(t => t.id === parseInt(selectedTemplateId))?.name || 'Manual',
                     created_at: new Date().toISOString()
                 };
                 setAssessmentHistory(prev => [newEntry, ...prev]);
+                return result.id;
             } else {
                 throw new Error("Failed to save assessment");
             }
         } catch (err) {
             console.error(err);
             toast.error(err.message);
+            return null;
         } finally {
             setIsSaving(false);
         }
     };
 
+    const handleSaveReport = async () => {
+        const id = await persistAssessment(soapData);
+        if (id) {
+            toast.success("Assessment saved to patient record.");
+        }
+    };
+
     const handleDownload = async (finalData) => {
         try {
-            toast.info("Generating document...");
+            // First persist it to the record history
+            toast.info("Saving and generating document...");
+            await persistAssessment(finalData);
+
             const res = await fetch('/generate-document', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -128,19 +139,19 @@ const AssessmentStudio = ({
             document.body.appendChild(a);
             a.click();
             a.remove();
-            toast.success("Document downloaded successfully.");
+            toast.success("Document saved and downloaded.");
         } catch (error) {
             console.error(error);
-            toast.error("Failed to download document.");
+            toast.error("Failed to process document.");
         }
     };
 
     return (
-        <div className="h-full flex flex-col bg-slate-50 border-l border-slate-200 animate-fade-in text-slate-900">
+        <div className="h-full flex flex-col bg-slate-50 border-l border-slate-200 animate-fade-in text-slate-900Selection:bg-indigo-100 selection:text-indigo-900">
             {/* Studio Header */}
             <div className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm z-30 sticky top-0">
                 <div className="flex items-center space-x-4">
-                    <button onClick={() => onNavigate('library')} className="text-slate-500 hover:text-slate-800 transition-colors flex items-center">
+                    <button onClick={() => onNavigate('library')} className="text-slate-500 hover:text-slate-800 transition-colors flex items-center transition-all active:scale-95">
                         <ArrowLeft size={18} className="mr-1" />
                         <span className="text-sm font-medium">Library</span>
                     </button>
@@ -211,7 +222,10 @@ const AssessmentStudio = ({
                     </div>
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                         {assessmentHistory.length === 0 ? (
-                            <p className="text-xs text-slate-400 text-center py-8 italic">No saved reports.</p>
+                            <div className="h-full flex flex-col items-center justify-center py-12 px-4 text-center">
+                                <FileText size={24} className="text-slate-300 mb-2" />
+                                <p className="text-[10px] text-slate-400 italic">No saved reports for this session.</p>
+                            </div>
                         ) : (
                             assessmentHistory.map((item, idx) => (
                                 <button
@@ -257,7 +271,7 @@ const AssessmentStudio = ({
                             </span>
                         </div>
                         <textarea
-                            className="flex-1 w-full p-4 bg-transparent outline-none resize-none text-xs text-slate-700"
+                            className="flex-1 w-full p-4 bg-transparent outline-none resize-none text-xs text-slate-700 placeholder:text-slate-300"
                             placeholder="Add clinical observations here..."
                             value={doctorNotes}
                             onChange={(e) => setDoctorNotes(e.target.value)}
@@ -281,16 +295,18 @@ const AssessmentStudio = ({
                                     key={analysisCount}
                                     initialData={soapData}
                                     onDownload={handleDownload}
+                                    onChange={(newData) => setSoapData(newData)}
                                 />
                             </div>
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4">
-                                <div className="p-6 bg-white rounded-full border border-slate-200 shadow-sm">
-                                    <FileText size={32} className="text-slate-200" />
+                                <div className="p-6 bg-white rounded-full border border-slate-200 shadow-sm relative">
+                                    <div className="absolute inset-0 bg-indigo-100 rounded-full animate-ping opacity-10"></div>
+                                    <FileText size={32} className="text-slate-200 relative z-10" />
                                 </div>
                                 <div className="text-center">
                                     <h3 className="text-slate-600 font-medium text-sm">No Report Loaded</h3>
-                                    <p className="text-xs">Run analysis or select an item from history.</p>
+                                    <p className="text-xs">Run analysis or select an item from history to view clinical notes.</p>
                                 </div>
                             </div>
                         )}
