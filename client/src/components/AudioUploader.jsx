@@ -11,7 +11,8 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
     const [isRecording, setIsRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
     const [audioBlob, setAudioBlob] = useState(null);
-    const [audioLevel, setAudioLevel] = useState(0); // 0-255 for visualizer
+    const [audioLevels, setAudioLevels] = useState([0, 0, 0, 0, 0, 0, 0, 0]); // Frequency spectrum
+    const [audioLevel, setAudioLevel] = useState(0); // Average for ring logic
     const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
     const audioRef = useRef(null);
 
@@ -50,8 +51,15 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
             const updateVisualizer = () => {
                 if (!analyserRef.current) return;
                 analyserRef.current.getByteFrequencyData(dataArrayRef.current);
-                const average = dataArrayRef.current.reduce((a, b) => a + b) / dataArrayRef.current.length;
+
+                // Extract 8 specific bins for frequencies (Low -> High)
+                const bins = [0, 1, 2, 4, 6, 8, 10, 12].map(idx => dataArrayRef.current[idx] || 0);
+                setAudioLevels(bins);
+
+                // Also keep track of average for the pulsing background
+                const average = bins.reduce((a, b) => a + b, 0) / bins.length;
                 setAudioLevel(average);
+
                 animationFrameRef.current = requestAnimationFrame(updateVisualizer);
             };
             updateVisualizer();
@@ -105,6 +113,7 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
         setFile(null);
         setRecordingTime(0);
         setAudioLevel(0);
+        setAudioLevels([0, 0, 0, 0, 0, 0, 0, 0]);
         setIsPreviewPlaying(false);
         setError('');
     };
@@ -242,17 +251,28 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
                         <div className="relative z-10 flex flex-col items-center justify-center min-h-[220px]">
                             {isRecording ? (
                                 <>
-                                    <div className="text-5xl font-mono font-bold tracking-wider mb-8 text-white relative">
+                                    <div className="text-5xl font-mono font-bold tracking-wider mb-2 text-white relative z-20">
                                         {formatTime(recordingTime)}
-                                        {/* Visualizer Ring - Low Bloat */}
+                                        {/* Visualizer Ring - Glow Effect */}
                                         <div
-                                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-red-500/30 transition-all duration-75 ease-linear pointer-events-none"
+                                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-indigo-500/20 transition-all duration-75 ease-linear pointer-events-none"
                                             style={{
-                                                width: `${140 + audioLevel}px`,
-                                                height: `${140 + audioLevel}px`,
-                                                opacity: Math.min(audioLevel / 50, 0.8)
+                                                width: `${160 + audioLevel}px`,
+                                                height: `${160 + audioLevel}px`,
+                                                opacity: Math.min(audioLevel / 40, 0.6)
                                             }}
                                         ></div>
+                                    </div>
+
+                                    {/* Frequency Bars (Tone Feedback) */}
+                                    <div className="flex items-end gap-1 h-12 mb-8 z-20">
+                                        {audioLevels.map((lvl, i) => (
+                                            <div
+                                                key={i}
+                                                className="w-1.5 bg-indigo-400 rounded-full transition-all duration-75 ease-linear"
+                                                style={{ height: `${Math.max(4, lvl / 2.5)}px`, opacity: 0.3 + (lvl / 255) }}
+                                            ></div>
+                                        ))}
                                     </div>
 
                                     <button
@@ -264,10 +284,10 @@ const AudioUploader = ({ onTranscriptionComplete }) => {
                                     <div className="mt-4 flex flex-col items-center gap-1">
                                         <p className="text-slate-300 text-sm font-medium flex items-center gap-2">
                                             <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                                            Recording...
+                                            Recording Live
                                         </p>
                                         {recordingTime < MIN_DURATION_SECONDS && (
-                                            <p className="text-xs text-slate-500">Minimum duration: 2:00</p>
+                                            <p className="text-xs text-slate-500 font-mono">2:00 MIN REQ — {formatTime(recordingTime)}</p>
                                         )}
                                     </div>
                                 </>
