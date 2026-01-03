@@ -323,7 +323,7 @@ app.post('/api/generate', requireAuth, async (req, res) => {
 
         console.log(`[Async] Generating transcript for URI: ${file_uri}, MIME: ${normalizedMime}`);
 
-        const modelName = process.env.GEMINI_MODEL_TRANSCRIBE || "gemini-3-flash";
+        const modelName = process.env.GEMINI_MODEL_TRANSCRIBE || "gemini-2.5-flash";
         const model = genAI.getGenerativeModel({ model: modelName });
 
         const defaultTranscribeText = getDefaultPrompt('transcribe_audio');
@@ -346,7 +346,8 @@ app.post('/api/generate', requireAuth, async (req, res) => {
         console.error("Generate Error Detailed:", error);
         res.status(500).json({
             error: "Transcript generation failed",
-            message: error.message,
+            message: error.message || "No error message provided by AI SDK",
+            details: error.toString(),
             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
@@ -383,7 +384,7 @@ app.post('/validate', requireAuth, async (req, res) => {
         };
 
         const model = genAI.getGenerativeModel({
-            model: process.env.GEMINI_MODEL_VALIDATE || "gemini-3-flash",
+            model: process.env.GEMINI_MODEL_VALIDATE || "gemini-2.5-flash",
             generationConfig: {
                 responseMimeType: "application/json",
                 responseSchema: schema,
@@ -446,7 +447,7 @@ app.post('/assess-soap', requireAuth, async (req, res) => {
         }
 
         const model = genAI.getGenerativeModel({
-            model: process.env.GEMINI_MODEL_ASSESS || "gemini-3-pro",
+            model: process.env.GEMINI_MODEL_ASSESS || "gemini-2.5-pro",
             generationConfig: {
                 responseMimeType: "application/json",
                 responseSchema: schema
@@ -604,7 +605,7 @@ app.post('/api/templates/analyze', requireAuth, upload.single('template'), async
 
         // 2. Ask Gemini to generate Schema & Prompt
         const model = genAI.getGenerativeModel({
-            model: "gemini-3-flash",
+            model: "gemini-2.5-flash",
             generationConfig: { responseMimeType: "application/json" }
         });
 
@@ -667,7 +668,7 @@ app.post('/api/templates/refresh', requireAuth, async (req, res) => {
             return res.json({ placeholders: [], schema_suggestion: {}, prompt_suggestion: "" });
         }
 
-        const model = genAI.getGenerativeModel({ model: "gemini-3-flash", generationConfig: { responseMimeType: "application/json" } });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         const defaultAnalyzeText = getDefaultPrompt('analyze_template');
         const rawPrompt = await promptService.get('analyze_template', defaultAnalyzeText);
         const analysisPrompt = rawPrompt.replace('{{placeholders}}', JSON.stringify(placeholders));
