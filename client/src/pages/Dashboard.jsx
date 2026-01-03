@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 const Dashboard = ({ onNavigate }) => {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState({
-        stats: { total_patients: 0, total_sessions: 0, hours_saved: 0 },
+        stats: { total_patients: 0, total_sessions: 0, hours_saved: 0, total_templates: 0 },
         recentActivity: []
     });
 
@@ -49,18 +49,21 @@ const Dashboard = ({ onNavigate }) => {
                     value={data.stats.total_patients}
                     icon={<UserIcon size={18} />}
                     color="indigo"
+                    onClick={() => onNavigate('patients')}
                 />
                 <StatCard
                     label="Total Sessions"
                     value={data.stats.total_sessions}
                     icon={<FileText size={18} />}
                     color="purple"
+                    onClick={() => onNavigate('library')}
                 />
                 <StatCard
                     label="Templates"
                     value={data.stats.total_templates || 0}
                     icon={<Settings size={18} />}
                     color="emerald"
+                    onClick={() => onNavigate('templates')}
                 />
             </div>
 
@@ -134,7 +137,7 @@ const Dashboard = ({ onNavigate }) => {
 };
 
 // Sub-components for cleaner code
-const StatCard = ({ label, value, icon, color }) => {
+const StatCard = ({ label, value, icon, color, onClick }) => {
     const colorClasses = {
         indigo: 'bg-indigo-50 text-indigo-600',
         purple: 'bg-purple-50 text-purple-600',
@@ -143,15 +146,18 @@ const StatCard = ({ label, value, icon, color }) => {
     }[color] || 'bg-slate-50 text-slate-600';
 
     return (
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-32 hover:shadow-md transition-all">
-            <div className="flex justify-between items-start">
+        <button
+            onClick={onClick}
+            className={`bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-32 hover:shadow-md transition-all text-left w-full ${onClick ? 'cursor-pointer' : ''}`}
+        >
+            <div className="flex justify-between items-start w-full">
                 <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">{label}</span>
                 <div className={`p-2 rounded-lg ${colorClasses}`}>
                     {icon}
                 </div>
             </div>
             <span className="text-3xl font-bold text-slate-900">{value}</span>
-        </div>
+        </button>
     );
 };
 

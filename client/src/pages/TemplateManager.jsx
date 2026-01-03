@@ -55,11 +55,132 @@ function TemplateManager() {
         }
     };
 
-    // ... handleRefreshSchema ...
-    // ... handleSave ...
-    // ... startEdit ...
-    // ... resetForm ...
-    // ... handleDelete ...
+    const handleRefreshSchema = async () => {
+        if (!editingTemplate) return;
+        setRefreshing(true);
+        try {
+            const res = await fetch('/api/templates/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ template_id: editingTemplate.id })
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                setPromptText(data.prompt_suggestion);
+                setSchemaJson(JSON.stringify(data.schema_suggestion, null, 2));
+                toast.success("Schema refreshed from original file");
+            } else {
+                toast.error("Refresh failed: " + data.error);
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Refresh error");
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!name || !promptText || !schemaJson) return toast.error("Missing required fields");
+        if (!editingTemplate && !file) return toast.error("Please select a template file");
+
+        try {
+            JSON.parse(schemaJson); // Validate JSON
+        } catch (e) {
+            return toast.error("Invalid JSON Schema format");
+        }
+
+        const url = editingTemplate ? `/api/templates/${editingTemplate.id}` : '/api/templates'; // Fixed URL spacing
+        const method = editingTemplate ? 'PUT' : 'POST';
+
+        let body, headers;
+
+        if (editingTemplate) {
+            // Update: JSON is fine
+            headers = { 'Content-Type': 'application/json' };
+            body = JSON.stringify({
+                name,
+                description,
+                prompt_text: promptText,
+                schema_json: schemaJson
+            });
+        } else {
+            // Create: Must be FormData for file upload
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('name', name);
+            formData.append('description', description);
+            formData.append('prompt_text', promptText);
+            formData.append('schema_json', schemaJson);
+
+            body = formData;
+            // No Content-Type header for FormData; browser sets it with boundary
+        }
+
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: headers,
+                body: body
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                toast.success(editingTemplate ? "Template updated" : "Template saved");
+                fetchTemplates();
+                resetForm();
+            } else {
+                toast.error(`Save failed: ${data.error} ${data.message ? `(${data.message})` : ''}`);
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Save error");
+        }
+    };
+
+    const startEdit = (t) => {
+        setEditingTemplate(t);
+        setName(t.name);
+        setDescription(t.description);
+        setPromptText(t.prompt_text);
+        try {
+            const obj = JSON.parse(t.schema_json);
+            setSchemaJson(JSON.stringify(obj, null, 2));
+        } catch (e) {
+            setSchemaJson(t.schema_json);
+        }
+        setFilePath(t.file_path);
+        setFile(null);
+    };
+
+    const resetForm = () => {
+        setEditingTemplate(null);
+        setName(''); setDescription(''); setPromptText(''); setSchemaJson('{}');
+        setFile(null); setFilePath(null);
+        const fileInput = document.getElementById('file-upload');
+        if (fileInput) fileInput.value = "";
+    };
+
+    const handleDelete = async () => {
+        if (!editingTemplate) return;
+        if (!confirm("Are you sure you want to delete this template? This cannot be undone.")) return;
+
+        try {
+            const res = await fetch(`/api/templates/${editingTemplate.id}`, { method: 'DELETE' });
+            if (res.ok) {
+                toast.success("Template deleted");
+                fetchTemplates();
+                resetForm();
+            } else {
+                const data = await res.json();
+                toast.error("Delete failed: " + data.error);
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Delete error");
+        }
+    };
 
     return (
         <div className="px-8 py-8 max-w-6xl mx-auto animate-fade-in pb-20 text-slate-900">
