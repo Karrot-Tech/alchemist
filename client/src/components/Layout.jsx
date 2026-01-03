@@ -26,10 +26,8 @@ const Layout = ({ children, activeTab, onNavigate }) => {
                     className="h-16 flex items-center px-6 border-b border-slate-100 cursor-pointer"
                     onClick={() => onNavigate('dashboard')}
                 >
-                    <div className="h-8 w-8 bg-indigo-600 rounded-lg flex items-center justify-center mr-3 shadow-indigo-200 shadow-md">
-                        <span className="text-white font-bold text-xl">A</span>
-                    </div>
-                    <span className="text-lg font-bold tracking-tight text-slate-800">Alchemist</span>
+                    <img src="/favicon.png" alt="Logo" className="h-8 w-8 mr-3 rounded-lg shadow-sm" />
+                    <span className="text-lg font-bold tracking-tight text-slate-800">Alchemist AI</span>
                 </div>
 
                 {/* Navigation */}
