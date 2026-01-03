@@ -131,7 +131,7 @@ const TranscriptLibrary = ({ onSelectTranscript, initialPatientId }) => {
                                 <button
                                     key={p.id}
                                     onClick={() => setSelectedPatientId(p.id)}
-                                    className={`w-full text-left p-4 hover:bg-slate-100 transition-colors flex items-center justify-between group even:bg-slate-100/40 ${selectedPatientId === p.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'border-l-4 border-transparent'}`}
+                                    className={`w-full text-left p-4 hover:bg-slate-100 border-b border-slate-100 transition-colors flex items-center justify-between group even:bg-slate-100/40 ${selectedPatientId === p.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'border-l-4 border-transparent'}`}
                                 >
                                     <div>
                                         <p className={`font-medium text-sm ${selectedPatientId === p.id ? 'text-indigo-900' : 'text-slate-700'}`}>{p.name}</p>
