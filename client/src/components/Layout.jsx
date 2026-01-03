@@ -39,6 +39,7 @@ const Layout = ({ children, activeTab, onNavigate }) => {
                     <div className="flex items-center cursor-pointer" onClick={() => handleNavigate('dashboard')}>
                         <img src="/favicon.png" alt="Logo" className="h-8 w-8 mr-3 rounded-lg" />
                         <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-cyan-600 to-indigo-600 bg-clip-text text-transparent">Alchemist AI</span>
+                        <span className="ml-2 text-[10px] font-semibold text-slate-300 uppercase tracking-widest">v1.0.0</span>
                     </div>
                 </div>
             </header>
@@ -63,6 +64,7 @@ const Layout = ({ children, activeTab, onNavigate }) => {
                 >
                     <img src="/favicon.png" alt="Logo" className="h-8 w-8 mr-3 rounded-lg shadow-sm" />
                     <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-cyan-600 to-indigo-600 bg-clip-text text-transparent">Alchemist AI</span>
+                    <span className="ml-2 text-[10px] font-semibold text-slate-300 uppercase tracking-widest">v1.0.0</span>
                 </div>
 
                 {/* Mobile Brand in Sidebar (Optional, maybe just spacing) */}
