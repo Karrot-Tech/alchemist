@@ -25,6 +25,17 @@ const NewSession = () => {
     const { uploadAndTranscribe, jobs } = useTranscription();
     const [currentJobId, setCurrentJobId] = useState(null);
 
+    const handleTranscriptionComplete = React.useCallback((data) => {
+        // [LEGACY] This is only called if onUploadStart is NOT provided.
+        // But we will provide onUploadStart, so this might be dead code 
+        // unless we want to keep a local-only fallback.
+        setTranscriptData({ text: data.transcript });
+        setAudioUrl(data.audioUrl);
+        // Only show success toast if it wasn't a background auto-complete (context already toasts)
+        // But here we can't easily distinguish, so showing another toast is fine or we suppress it.
+        // For now, let's keep it simple.
+    }, []);
+
     // Watch for job completion if we are still here
     useEffect(() => {
         if (!currentJobId || !jobs[currentJobId]) return;
@@ -92,16 +103,7 @@ const NewSession = () => {
         }
     };
 
-    const handleTranscriptionComplete = React.useCallback((data) => {
-        // [LEGACY] This is only called if onUploadStart is NOT provided.
-        // But we will provide onUploadStart, so this might be dead code 
-        // unless we want to keep a local-only fallback.
-        setTranscriptData({ text: data.transcript });
-        setAudioUrl(data.audioUrl);
-        // Only show success toast if it wasn't a background auto-complete (context already toasts)
-        // But here we can't easily distinguish, so showing another toast is fine or we suppress it.
-        // For now, let's keep it simple.
-    }, []);
+
 
     const handleBackgroundUpload = async (file) => {
         // 1. Ensure minimal metadata (Patient Name)
