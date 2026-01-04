@@ -3,7 +3,7 @@ import { Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthFetch } from '../hooks/useAuthFetch';
 
-const TranscriptViewer = ({ transcript, onTranscriptChange, onValidationReceived }) => {
+const TranscriptViewer = ({ transcript, onTranscriptChange, onValidationReceived, audioUrl }) => {
     const authFetch = useAuthFetch();
     const [isValidating, setIsValidating] = useState(false);
     const [validationResult, setValidationResult] = useState(null);
@@ -33,8 +33,15 @@ const TranscriptViewer = ({ transcript, onTranscriptChange, onValidationReceived
 
     return (
         <div className="p-6 bg-white rounded-lg shadow-md border border-gray-200 mt-6">
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-800">2. Transcript & Validation</h2>
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
+                <div className="flex items-center gap-4 flex-1">
+                    <h2 className="text-xl font-semibold text-gray-800 whitespace-nowrap">2. Transcript & Validation</h2>
+                    {audioUrl && (
+                        <div className="flex-1 max-w-sm">
+                            <audio controls src={audioUrl} className="w-full h-8" />
+                        </div>
+                    )}
+                </div>
                 <button
                     onClick={handleValidate}
                     disabled={!transcript || isValidating}
