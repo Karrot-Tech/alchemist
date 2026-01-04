@@ -292,6 +292,18 @@ const NewSession = () => {
                         </div>
                     </div>
 
+
+                    {/* Audio Player */}
+                    {audioUrl && (
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
+                                Session Recording
+                            </h3>
+                            <audio controls src={audioUrl} className="w-full" />
+                        </div>
+                    )}
+
                     {/* Transcript Preview */}
                     <div className="space-y-3">
                         <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1">Transcript Preview</h3>
