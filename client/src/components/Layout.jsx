@@ -17,7 +17,7 @@ const Layout = ({ children }) => {
         { id: 'drafts', path: '/drafts', label: 'Sessions Inbox', icon: Inbox },
         { id: 'library', path: '/records', label: 'Consult Records', icon: FolderOpen },
         { id: 'patients', path: '/patients', label: 'Patient Directory', icon: Users },
-        { id: 'templates', path: '/templates', label: 'Clinical Template', icon: FileText },
+        { id: 'templates', path: '/templates', label: 'Clinical Templates', icon: FileText },
         { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
     ];
 
