@@ -45,7 +45,7 @@ const TranscriptViewer = ({ transcript, onTranscriptChange, onValidationReceived
                 <button
                     onClick={handleValidate}
                     disabled={!transcript || isValidating}
-                    className={`py-2 px-4 rounded-md text-white font-bold text-sm transition-colors flex items-center gap-2
+                    className={`py-2 px-4 rounded-md text-white font-bold text-sm transition-colors flex items-center justify-center gap-2 min-w-[200px]
                     ${!transcript || isValidating ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'}`}
                 >
                     {isValidating ? (
