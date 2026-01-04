@@ -151,7 +151,10 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
 
                 stream.getTracks().forEach(track => track.stop());
                 if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-                if (audioContextRef.current) audioContextRef.current.close();
+                if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+                    audioContextRef.current.close();
+                    audioContextRef.current = null;
+                }
             };
 
             mediaRecorderRef.current.start(1000); // Send data chunks every second
@@ -324,7 +327,7 @@ const AudioUploader = ({ onTranscriptionComplete, onUploadStart }) => {
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-            if (audioContextRef.current) audioContextRef.current.close();
+            if (audioContextRef.current && audioContextRef.current.state !== 'closed') audioContextRef.current.close();
             if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
                 mediaRecorderRef.current.stop();
             }
