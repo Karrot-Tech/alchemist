@@ -23,7 +23,7 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            connectSrc: ["'self'", "http://localhost:*", "ws://localhost:*", "https://clerk.ppai.dev", "https://*.clerk.accounts.dev"],
+            connectSrc: ["'self'", "http://localhost:*", "ws://localhost:*", "https://clerk.ppai.dev", "https://*.clerk.accounts.dev", "https://clerk-telemetry.com"],
             scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://clerk.ppai.dev", "https://*.clerk.accounts.dev"],
             styleSrc: ["'self'", "'unsafe-inline'"],
             imgSrc: ["'self'", "data:", "blob:", "https://*.vercel.store", "https://img.clerk.com", "https://*.public.blob.vercel-storage.com"],
