@@ -57,7 +57,7 @@ export const TranscriptionProvider = ({ children }) => {
             while (state === "PROCESSING") {
                 await new Promise(resolve => setTimeout(resolve, 2000));
 
-                const statusRes = await authFetch(`/ api / status ? name = ${encodeURIComponent(gemini_file_name)} `);
+                const statusRes = await authFetch(`/api/status?name=${encodeURIComponent(gemini_file_name)}`);
                 if (!statusRes.ok) throw new Error("Failed to check processing status");
                 const statusData = await statusRes.json();
                 state = statusData.state;
